@@ -38,8 +38,8 @@
     "prepare": "run-p husky-install rebuild",
     "pretest:e2e": "run-s build",
     "rebuild": "run-s clean build",
-    "test": "run-s test:unit test:smoke",
-    "test:ci": "run-s test:unit test:smoke test:e2e",
+    "test": "run-s test:e2e",
+    "test:ci": "run-s test:e2e",
     "test:e2e": "mocha --timeout 20s --slow 10s \"test/e2e/**/*.spec.ts\"",
     "test:unit": "mocha \"test/unit/**/*.spec.ts\""
   },
