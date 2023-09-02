@@ -10,6 +10,5 @@
     "composite": true,
     "skipLibCheck": false
   },
-  "include": ["."],
-  "exclude": ["*.test-d.ts"]
+  "include": ["."]
 }

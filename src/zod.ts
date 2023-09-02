@@ -1,4 +1,9 @@
-import type {Argv, InferredOptionTypes, Options as YOptions} from 'yargs';
+import type {
+  Argv,
+  InferredOptionType,
+  InferredOptionTypes,
+  Options as YOptions,
+} from 'yargs';
 import type z from 'zod';
 import type {kZodlaw} from './zodlaw';
 
@@ -16,6 +21,7 @@ declare module 'zod' {
     | 'hidden'
     | 'nargs'
     | 'normalize'
+    | 'type'
   >;
 
   type ZodlawOptionsRecord = Record<string, ZodlawOptions>;
@@ -65,10 +71,9 @@ declare module 'zod' {
 
   /**
    * Any Zod class monkeypatched by zodlaw _must_ extend this interface
-   *
-   * @todo add `zodlaw()`
+   * @typeArgument {ZodlawData} The value returned by {@linkcode _zodlaw}
    */
-  interface ZodlawType {
+  interface ZodlawType<ZodlawData> {
     /**
      * @internal
      */
@@ -78,6 +83,8 @@ declare module 'zod' {
      * @private
      */
     _newThis(): this;
+
+    _zodlaw(): ZodlawData | undefined;
   }
 
   /**
@@ -91,23 +98,51 @@ declare module 'zod' {
     | z.ZodEnum<any>;
 
   /**
+   * Anything that has an `option()` method should extend this _and narrow each method_.
+   */
+  interface ZodlawOptionType extends ZodlawType<ZodlawOptions> {
+    _defaultType: ZodlawOptions['type'];
+    option(config?: ZodlawOptions): ZodlawOptionType;
+
+    global?(): ZodlawOptionType;
+
+    hidden?(): ZodlawOptionType;
+
+    deprecated?(message?: string): ZodlawOptionType;
+
+    defaultDescription?(defaultDescription?: string): ZodlawOptionType;
+
+    group?(name: string): ZodlawOptionType;
+
+    count?(): ZodlawOptionType;
+
+    nargs?(count: number): ZodlawOptionType;
+
+    normalize?(): ZodlawOptionType;
+
+    /**
+     * This function is expected to be called within the context of a parent
+     * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
+     * the `strict` parameter would be `true` here.
+     *
+     * Generally, you _don't_ want to demand options on the CLI, because it's
+     * not ergonomic; provide _sensible defaults_ instead.
+     */
+    _configureParser(name: string, yargs: Argv, strict?: boolean): Argv;
+  }
+
+  /**
    * Convenience type for returning a new {@linkcode z.ZodType} instance with its
    * {@linkcode z.ZodType._def _def} updated, containing changed {@linkcode ZodlawOptions}
    *
    * On the implementation side, see {@linkcode ZodlawType._newThis}
    */
   type ZodlawOptionsResult<
-    Z extends z.ZodTypeAny,
+    Z extends z.ZodTypeAny & ZodlawOptionType,
     OValue extends Partial<ZodlawOptions>,
   > = Z & {
     _def: Z['_def'] & {zodlawOptions: OValue};
   };
-
-  interface ZodlawOptionType extends ZodlawType {
-    zodlaw(): ZodlawOptions | undefined;
-
-    option<O extends ZodlawOptions>(config?: O): ZodlawOptionType;
-  }
 
   interface ZodBoolean extends ZodlawOptionType {
     option<O extends ZodlawOptions>(
@@ -140,16 +175,43 @@ declare module 'zod' {
 
     group(name: string): ZodlawOptionsResult<this, {group: string}>;
 
-    zodlaw(): this['_def'] extends {
+    _zodlaw(): this['_def'] extends {
       zodlawOptions: infer Z extends ZodlawOptions;
     }
       ? Z
       : ZodlawOptions | undefined;
 
+    /**
+     * This forces the type to `number` via {@linkcode InferredOptionType}
+     * regardless of `type`
+     */
     count(): ZodlawOptionsResult<this, {count: true}>;
+
+    _configureParser<const OptName extends string, A, Strict extends boolean>(
+      name: OptName,
+      yargs: Argv<A>,
+      strict?: Strict,
+    ): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<
+              Z & {type: 'boolean'; demandOption: Strict}
+            >;
+          }
+        >
+      : Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<{
+              type: 'boolean';
+              demandOption: Strict;
+            }>;
+          }
+        >;
   }
 
-  interface ZodNumber extends ZodlawType {
+  interface ZodNumber extends ZodlawOptionType {
     option<O extends ZodlawOptions>(
       config?: O,
     ): this &
@@ -181,14 +243,37 @@ declare module 'zod' {
     group(name: string): ZodlawOptionsResult<this, {group: string}>;
 
     nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
-    zodlaw(): this['_def'] extends {
+    _zodlaw(): this['_def'] extends {
       zodlawOptions: infer Z extends ZodlawOptions;
     }
       ? Z
       : ZodlawOptions | undefined;
+
+    _configureParser<const OptName extends string, A, Strict extends boolean>(
+      name: OptName,
+      yargs: Argv<A>,
+      strict?: Strict,
+    ): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<
+              Z & {type: 'number'; demandOption: Strict}
+            >;
+          }
+        >
+      : Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<{
+              type: 'number';
+              demandOption: Strict;
+            }>;
+          }
+        >;
   }
 
-  interface ZodString extends ZodlawType {
+  interface ZodString extends ZodlawOptionType {
     option<O extends ZodlawOptions>(
       config?: O,
     ): this &
@@ -222,15 +307,42 @@ declare module 'zod' {
     nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
 
     normalize(): ZodlawOptionsResult<this, {normalize: true}>;
-    zodlaw(): this['_def'] extends {
+
+    _zodlaw(): this['_def'] extends {
       zodlawOptions: infer Z extends ZodlawOptions;
     }
       ? Z
       : ZodlawOptions | undefined;
+
+    _configureParser<const OptName extends string, A, Strict extends boolean>(
+      name: OptName,
+      yargs: Argv<A>,
+      strict?: Strict,
+    ): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<
+              Z & {
+                type: 'string';
+                demandOption: Strict;
+              }
+            >;
+          }
+        >
+      : Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<{
+              type: 'string';
+              demandOption: Strict;
+            }>;
+          }
+        >;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface ZodEnum<T extends [string, ...string[]]> extends ZodlawType {
+  interface ZodEnum<T extends [string, ...string[]]> extends ZodlawOptionType {
     option<O extends ZodlawOptions>(
       config?: O,
     ): this &
@@ -263,12 +375,38 @@ declare module 'zod' {
 
     nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
 
-    zodlaw(): this['_def'] extends {
+    _zodlaw(): this['_def'] extends {
       zodlawOptions: infer Z extends ZodlawOptions;
     }
       ? Z
       : ZodlawOptions | undefined;
+
+    _configureParser<const OptName extends string, A, Strict extends boolean>(
+      name: OptName,
+      yargs: Argv<A>,
+      strict?: Strict,
+    ): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+      values: infer T;
+    }
+      ? Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<
+              Z & {choices: T; demandOption: Strict}
+            >;
+          }
+        >
+      : Argv<
+          Omit<A, OptName> & {
+            [K in OptName]: InferredOptionType<{
+              choices: T;
+              demandOption: Strict;
+            }>;
+          }
+        >;
   }
+
+  type blah = InferredOptionType<{choices: ['a', 'b', 'c']}>;
 
   interface ZodObject<
     T extends z.ZodRawShape,
@@ -276,8 +414,8 @@ declare module 'zod' {
     Catchall extends z.ZodTypeAny = z.ZodTypeAny,
     Output = z.objectOutputType<T, Catchall, UnknownKeys>,
     Input = z.objectInputType<T, Catchall, UnknownKeys>,
-  > extends ZodlawType {
-    zodlaw(): this['_def'] extends {
+  > extends ZodlawType<ZodlawOptionsRecord> {
+    _zodlaw(): this['_def'] extends {
       zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
     }
       ? Z
@@ -287,7 +425,7 @@ declare module 'zod' {
      * @param yargs Yargs instance
      * @returns A Yargs instance with whatever config comes out of the schema
      */
-    createParser(yargs: Argv): this['_def'] extends {
+    _configureParser(yargs: Argv): this['_def'] extends {
       zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
     }
       ? Argv<Omit<Output, keyof Output>> & InferredOptionTypes<Z>

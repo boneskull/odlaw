@@ -1,10 +1,10 @@
 import unexpected from 'unexpected';
 import yargs from 'yargs/yargs';
-import z from 'zod';
+import zod from 'zod';
 import {register} from '../../src/zodlaw';
 
 const expect = unexpected.clone();
-register(z);
+const z = register(zod);
 
 describe('zodlaw', function () {
   describe('option', function () {
@@ -26,7 +26,7 @@ describe('zodlaw', function () {
         })
         .options();
       await expect(
-        schema.createParser(yargs(['--foo', 'bar', 'baz'])).getHelp(),
+        schema._configureParser(yargs(['--foo', 'bar', 'baz'])).getHelp(),
         'to be fulfilled with value satisfying',
         /foo means stuff/,
       );
@@ -65,14 +65,14 @@ describe('zodlaw', function () {
 
       it('should return a parser that parses args', function () {
         const result = schema
-          .createParser(yargs(['--foo', 'bar', 'baz']))
+          ._configureParser(yargs(['--foo', 'bar', 'baz']))
           .parseSync();
         expect(result, 'to satisfy', {_: ['baz'], foo: 'bar'});
       });
 
       it('should pull description out of zod', async function () {
         const result = await schema
-          .createParser(yargs(['--foo', 'bar', 'baz']))
+          ._configureParser(yargs(['--foo', 'bar', 'baz']))
           .getHelp();
         expect(result, 'to match', /--foo\s.+One foo only/);
       });
