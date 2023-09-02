@@ -3,6 +3,7 @@
   "compilerOptions": {
     "types": ["node", "mocha"],
     "noEmit": true,
+    "skipLibCheck": false,
     "composite": true
   },
   "include": ["."],

@@ -8,7 +8,6 @@ declare module 'zod' {
    */
   type ZodlawOptions = Pick<
     YOptions,
-    | 'describe'
     | 'count'
     | 'defaultDescription'
     | 'deprecated'
@@ -48,10 +47,21 @@ declare module 'zod' {
     zodlawOptions?: ZodlawOptions;
   }
 
-  // TODO: ZodString
-  // TODO: ZodNumber
-  // TODO: ZodArray
-  // TODO: ZodEnum
+  interface ZodStringDef {
+    zodlawOptions?: ZodlawOptions;
+  }
+
+  interface ZodNumberDef {
+    zodlawOptions?: ZodlawOptions;
+  }
+
+  interface ZodArrayDef {
+    zodlawOptions?: ZodlawOptions;
+  }
+
+  interface ZodEnumDef {
+    zodlawOptions?: ZodlawOptions;
+  }
 
   /**
    * Any Zod class monkeypatched by zodlaw _must_ extend this interface
@@ -70,22 +80,194 @@ declare module 'zod' {
     _newThis(): this;
   }
 
-  interface ZodBoolean extends ZodlawType {
+  /**
+   * These types are ones that we can translate into args
+   */
+  type AnyZodlaw =
+    | z.ZodBoolean
+    | z.ZodString
+    | z.ZodNumber
+    | z.ZodArray<any>
+    | z.ZodEnum<any>;
+
+  /**
+   * Convenience type for returning a new {@linkcode z.ZodType} instance with its
+   * {@linkcode z.ZodType._def _def} updated, containing changed {@linkcode ZodlawOptions}
+   *
+   * On the implementation side, see {@linkcode ZodlawType._newThis}
+   */
+  type ZodlawOptionsResult<
+    Z extends z.ZodTypeAny,
+    OValue extends Partial<ZodlawOptions>,
+  > = Z & {
+    _def: Z['_def'] & {zodlawOptions: OValue};
+  };
+
+  interface ZodlawOptionType extends ZodlawType {
+    zodlaw(): ZodlawOptions | undefined;
+
+    option<O extends ZodlawOptions>(config?: O): ZodlawOptionType;
+  }
+
+  interface ZodBoolean extends ZodlawOptionType {
+    option<O extends ZodlawOptions>(
+      config?: O,
+    ): this &
+      z.ZodType<
+        boolean,
+        this['_def'] &
+          (this['_def'] extends {
+            zodlawOptions: infer ZLO;
+          }
+            ? {zodlawOptions: ZLO & O}
+            : {zodlawOptions: O})
+      >;
+
+    global(): ZodlawOptionsResult<this, {global: true}>;
+
+    hidden(): ZodlawOptionsResult<this, {hidden: true}>;
+
+    deprecated(message?: string): ZodlawOptionsResult<
+      this,
+      {
+        deprecated: typeof message extends string ? string : true;
+      }
+    >;
+
+    defaultDescription(
+      defaultDescription?: string,
+    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
+
+    group(name: string): ZodlawOptionsResult<this, {group: string}>;
+
     zodlaw(): this['_def'] extends {
       zodlawOptions: infer Z extends ZodlawOptions;
     }
       ? Z
       : ZodlawOptions | undefined;
 
-    option(config?: ZodlawOptions): z.ZodBoolean &
+    count(): ZodlawOptionsResult<this, {count: true}>;
+  }
+
+  interface ZodNumber extends ZodlawType {
+    option<O extends ZodlawOptions>(
+      config?: O,
+    ): this &
       z.ZodType<
         boolean,
-        z.ZodBooleanDef & this['_def'] extends {
-          zodlawOptions: infer Z extends ZodlawOptions;
-        }
-          ? this['_def'] & {zodlawOptions: Z & ZodlawOptions}
-          : this['_def'] & {zodlawOptions: ZodlawOptions}
+        this['_def'] &
+          (this['_def'] extends {
+            zodlawOptions: infer ZLO;
+          }
+            ? {zodlawOptions: ZLO & O}
+            : {zodlawOptions: O})
       >;
+
+    global(): ZodlawOptionsResult<this, {global: true}>;
+
+    hidden(): ZodlawOptionsResult<this, {hidden: true}>;
+
+    deprecated(message?: string): ZodlawOptionsResult<
+      this,
+      {
+        deprecated: typeof message extends string ? string : true;
+      }
+    >;
+
+    defaultDescription(
+      defaultDescription?: string,
+    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
+
+    group(name: string): ZodlawOptionsResult<this, {group: string}>;
+
+    nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
+    zodlaw(): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Z
+      : ZodlawOptions | undefined;
+  }
+
+  interface ZodString extends ZodlawType {
+    option<O extends ZodlawOptions>(
+      config?: O,
+    ): this &
+      z.ZodType<
+        boolean,
+        this['_def'] &
+          (this['_def'] extends {
+            zodlawOptions: infer ZLO;
+          }
+            ? {zodlawOptions: ZLO & O}
+            : {zodlawOptions: O})
+      >;
+
+    global(): ZodlawOptionsResult<this, {global: true}>;
+
+    hidden(): ZodlawOptionsResult<this, {hidden: true}>;
+
+    deprecated(message?: string): ZodlawOptionsResult<
+      this,
+      {
+        deprecated: typeof message extends string ? string : true;
+      }
+    >;
+
+    defaultDescription(
+      defaultDescription?: string,
+    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
+
+    group(name: string): ZodlawOptionsResult<this, {group: string}>;
+
+    nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
+
+    normalize(): ZodlawOptionsResult<this, {normalize: true}>;
+    zodlaw(): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Z
+      : ZodlawOptions | undefined;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ZodEnum<T extends [string, ...string[]]> extends ZodlawType {
+    option<O extends ZodlawOptions>(
+      config?: O,
+    ): this &
+      z.ZodType<
+        boolean,
+        this['_def'] &
+          (this['_def'] extends {
+            zodlawOptions: infer ZLO;
+          }
+            ? {zodlawOptions: ZLO & O}
+            : {zodlawOptions: O})
+      >;
+
+    global(): ZodlawOptionsResult<this, {global: true}>;
+
+    hidden(): ZodlawOptionsResult<this, {hidden: true}>;
+
+    deprecated(message?: string): ZodlawOptionsResult<
+      this,
+      {
+        deprecated: typeof message extends string ? string : true;
+      }
+    >;
+
+    defaultDescription(
+      defaultDescription?: string,
+    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
+
+    group(name: string): ZodlawOptionsResult<this, {group: string}>;
+
+    nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
+
+    zodlaw(): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Z
+      : ZodlawOptions | undefined;
   }
 
   interface ZodObject<
@@ -95,7 +277,9 @@ declare module 'zod' {
     Output = z.objectOutputType<T, Catchall, UnknownKeys>,
     Input = z.objectInputType<T, Catchall, UnknownKeys>,
   > extends ZodlawType {
-    zodlaw(): this['_def'] extends {zodlawOptionsRecord: infer Z}
+    zodlaw(): this['_def'] extends {
+      zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
+    }
       ? Z
       : ZodlawOptionsRecord | undefined;
 
@@ -118,11 +302,12 @@ declare module 'zod' {
     > &
       z.ZodType<
         T,
-        z.ZodObjectDef<T, UnknownKeys, Catchall> & this['_def'] extends {
-          zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
-        }
-          ? this['_def'] & {zodlawOptionsRecord: Z & ZodlawOptionsRecord}
-          : this['_def'] & {zodlawOptionsRecord: ZodlawOptionsRecord},
+        this['_def'] &
+          (this['_def'] extends {
+            zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
+          }
+            ? {zodlawOptionsRecord: Z & ZodlawOptionsRecord}
+            : {zodlawOptionsRecord: ZodlawOptionsRecord}),
         Input
       >;
   }

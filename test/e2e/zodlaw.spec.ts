@@ -2,6 +2,7 @@ import unexpected from 'unexpected';
 import yargs from 'yargs/yargs';
 import z from 'zod';
 import {register} from '../../src/zodlaw';
+
 const expect = unexpected.clone();
 register(z);
 
@@ -23,8 +24,7 @@ describe('zodlaw', function () {
             .describe('Some flag')
             .option({defaultDescription: 'foo means stuff'}),
         })
-        .options()
-        .strict();
+        .options();
       await expect(
         schema.createParser(yargs(['--foo', 'bar', 'baz'])).getHelp(),
         'to be fulfilled with value satisfying',
@@ -47,8 +47,7 @@ describe('zodlaw', function () {
               foo: {
                 hidden: true,
               },
-            })
-            .strict(),
+            }),
         'not to throw',
       );
     });
@@ -62,8 +61,7 @@ describe('zodlaw', function () {
           foo: {
             nargs: 1,
           },
-        })
-        .strict();
+        });
 
       it('should return a parser that parses args', function () {
         const result = schema
