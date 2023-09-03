@@ -4,27 +4,133 @@ import z from 'zod';
 import './zod';
 export const kZodlaw: unique symbol = Symbol('kZodlaw');
 
+const Monkeypatchers = {
+  [z.ZodFirstPartyTypeKind.ZodBoolean]: patchZodBoolean,
+  [z.ZodFirstPartyTypeKind.ZodString]: patchZodString,
+  [z.ZodFirstPartyTypeKind.ZodNumber]: patchZodNumber,
+  [z.ZodFirstPartyTypeKind.ZodEnum]: patchZodEnum,
+  // [z.ZodFirstPartyTypeKind.ZodArray]: registerZodArray,
+  [z.ZodFirstPartyTypeKind.ZodObject]: patchZodObject,
+};
+
+type ZodlawKind = keyof typeof Monkeypatchers;
+
 /**
- * Instantiates a new Zod type with the `_def` which we have presumably updated
+ * Utilties for the patchers
  * @internal
  */
-function _newThis<T extends z.ZodTypeAny>(this: T) {
-  const This = (this as any).constructor;
-  return new This(this._def);
-}
+const PatchUtils = {
+  clone<T extends z.ZodTypeAny>(zt: T): T {
+    return new (zt.constructor as any)(zt._def);
+  },
 
-function isZodlawOptionType<T extends z.ZodTypeAny>(
-  value: T,
-): value is T & z.ZodlawOptionType {
-  return (
-    '_zodlaw' in value &&
-    typeof value._zodlaw === 'function' &&
-    'option' in value &&
-    typeof value.option === 'function'
+  /**
+   * Type guard for {@linkcode ZodlawOptionType}
+   * @param value Some Zod Type
+   * @returns `true` if the `ZodType` is also a `ZodlawOptionType`
+   */
+  isZodlawOptionType<T extends z.ZodTypeAny>(
+    value: T,
+  ): value is T & z.ZodlawOptionType {
+    return (
+      '_zodlaw' in value &&
+      typeof value._zodlaw === 'function' &&
+      'option' in value &&
+      typeof value.option === 'function'
+    );
+  },
+
+  /**
+   * This is fairly defensive, but I wanted to be explicit about what we're passing around.
+   * @param zlOpts - {@linkcode ZodlawOptions}
+   * @param classSpecificOpts - Extra config that is specific to the `ZodType`
+   * @returns Options for `yargs.option()`
+   */
+  zlOptsToYOpts(
+    zlOpts: z.ZodlawOptions,
+    classSpecificOpts: Partial<YOptions>,
+  ): YOptions {
+    return {
+      alias: zlOpts.alias,
+      count: zlOpts.count,
+      defaultDescription: zlOpts.defaultDescription,
+      deprecated: zlOpts.deprecated,
+      global: zlOpts.global,
+      group: zlOpts.group,
+      hidden: zlOpts.hidden,
+      nargs: zlOpts.nargs,
+      ...classSpecificOpts,
+    };
+  },
+
+  assignZodlawOptionProto<T extends z.ZodlawOptionType>(proto: T) {
+    const CommonProto: ThisType<T & z.AnyZodlaw> = {
+      _zodlaw(): z.ZodlawOptions | undefined {
+        return this._def.zodlawOptions;
+      },
+
+      global() {
+        return this.option({global: true});
+      },
+
+      hidden() {
+        return this.option({hidden: true});
+      },
+
+      defaultDescription(defaultDescription = '') {
+        return this.option({defaultDescription});
+      },
+
+      group(group: string) {
+        return this.option({group});
+      },
+
+      option(config?: z.ZodlawOptions) {
+        const zodlawOptions = this._zodlaw();
+        this._def.zodlawOptions = zodlawOptions
+          ? {...zodlawOptions, ...config}
+          : config;
+
+        return PatchUtils.clone(this);
+      },
+
+      alias(alias: string | string[]) {
+        return this.option({alias});
+      },
+
+      [kZodlaw]: true,
+    };
+
+    return Object.assign(proto, CommonProto);
+  },
+};
+
+function patchZodEnum(zod: typeof z) {
+  const ZodEnumProto = zod.ZodEnum.prototype;
+
+  if (ZodEnumProto[kZodlaw]) {
+    return zod;
+  }
+
+  const ZodlawEnumProto: ThisType<z.ZodEnum<any>> = {
+    _configureOptions(strict?: boolean) {
+      return PatchUtils.zlOptsToYOpts(this._zodlaw() ?? {}, {
+        demandOption: strict,
+        describe: this._def.description,
+        choices: this._def.values,
+      });
+    },
+  };
+
+  Object.assign(
+    PatchUtils.assignZodlawOptionProto(ZodEnumProto),
+    ZodlawEnumProto,
   );
+
+  return zod;
 }
 
-function registerZodObject(zod: typeof z) {
+function patchZodObject(zod: typeof z) {
   const ZodObjectProto = zod.ZodObject.prototype;
 
   // prevent re-registration
@@ -43,7 +149,7 @@ function registerZodObject(zod: typeof z) {
         ? {...zodlawOptionsRecord, ...config}
         : config;
 
-      return this._newThis();
+      return PatchUtils.clone(this);
     },
 
     /**
@@ -56,33 +162,31 @@ function registerZodObject(zod: typeof z) {
        * Any `ZodlawOptions` created via this `ZodObject` itself
        */
       const zlOptionsRecord = this._zodlaw();
+
       if (zlOptionsRecord) {
-        // TODO: filter on supported types
-        for (const key of this._getCached().keys) {
-          const value = this.shape[key];
-          const {description} = value._def ?? {};
-          // if ZodlawOptions diverges from YOptions, this fail to compile
-          const yOpts: YOptions = (zlOptionsRecord[key] ??= {});
+        // todo: allow `.strict()` on `AnyZodlawType`
+        const strict =
+          'unknownKeys' in this._def && this._def.unknownKeys === 'strict';
+        return yargs.options(
+          Object.entries(this.shape)
+            .filter(([, value]) =>
+              PatchUtils.isZodlawOptionType(value as z.ZodTypeAny),
+            )
+            .reduce(
+              (zlOptionsRecord, [key, value]) => ({
+                ...zlOptionsRecord,
 
-          // TODO: breakout into its own function to pull in attributes from the zod schema
-          // which don't exist in ZodlawOption
-          if (description) {
-            yOpts.describe ??= description;
-          }
-
-          // TODO: break this out into another function that assigns props from supported zod types
-          if (isZodlawOptionType(value)) {
-            const zlOpts = value._zodlaw();
-            // thsi will break if ZodlawOptions diverges from YOptions
-            Object.assign(yOpts, zlOpts) satisfies YOptions;
-          }
-        }
-        return yargs.options(zlOptionsRecord);
+                [key]: {
+                  ...zlOptionsRecord[key],
+                  ...(value as z.ZodlawOptionType)._configureOptions(strict),
+                },
+              }),
+              zlOptionsRecord,
+            ),
+        );
       }
       return yargs;
     },
-
-    _newThis,
 
     [kZodlaw]: true,
   };
@@ -92,97 +196,88 @@ function registerZodObject(zod: typeof z) {
   return zod;
 }
 
-const Registrations = {
-  [z.ZodFirstPartyTypeKind.ZodBoolean]: registerZodBoolean,
-  [z.ZodFirstPartyTypeKind.ZodString]: registerZodString,
-  // [z.ZodFirstPartyTypeKind.ZodNumber]: registerZodNumber,
-  // [z.ZodFirstPartyTypeKind.ZodArray]: registerZodArray,
-  [z.ZodFirstPartyTypeKind.ZodObject]: registerZodObject,
-};
-
-type ZodlawKind = keyof typeof Registrations;
-
-function assignZodlawOptionProto<T extends z.ZodlawOptionType>(proto: T) {
-  const CommonProto: ThisType<T & z.AnyZodlaw> = {
-    _zodlaw(): z.ZodlawOptions | undefined {
-      return this._def.zodlawOptions;
-    },
-
-    global() {
-      return this.option({global: true});
-    },
-
-    hidden() {
-      return this.option({hidden: true});
-    },
-
-    defaultDescription(defaultDescription = '') {
-      return this.option({defaultDescription});
-    },
-
-    group(name: string) {
-      return this.option({group: name});
-    },
-
-    option(config?: z.ZodlawOptions) {
-      const zodlawOptions = this._zodlaw();
-      this._def.zodlawOptions = zodlawOptions
-        ? {...zodlawOptions, ...config}
-        : config;
-
-      return this._newThis();
-    },
-
-    count() {
-      return this.option({count: true});
-    },
-
-    _newThis,
-
-    [kZodlaw]: true,
-  };
-
-  return Object.assign(proto, CommonProto);
-}
-
-function registerZodBoolean(zod: typeof z) {
+function patchZodBoolean(zod: typeof z) {
   const ZodBooleanProto = zod.ZodBoolean.prototype;
 
   /**
-   * methods specific to `ZodBoolean`
+   * method implementations specific to `ZodBoolean`
    */
   const ZodlawBooleanProto: ThisType<z.ZodBoolean> = {
     count() {
       return this.option({count: true});
     },
+
+    _configureOptions(strict?: boolean) {
+      return PatchUtils.zlOptsToYOpts(this._zodlaw() ?? {}, {
+        demandOption: strict,
+        describe: this._def.description,
+        type: 'boolean',
+      });
+    },
   };
 
-  Object.assign(assignZodlawOptionProto(ZodBooleanProto), ZodlawBooleanProto);
+  Object.assign(
+    PatchUtils.assignZodlawOptionProto(ZodBooleanProto),
+    ZodlawBooleanProto,
+  );
 
   return zod;
 }
 
-function registerZodString(zod: typeof z) {
+function patchZodString(zod: typeof z) {
   const ZodStringProto = zod.ZodString.prototype;
 
   /**
-   * methods specific to `ZodString`
+   * method implementations specific to `ZodString`
    */
-  const ZodlawStringProto: ThisType<z.ZodBoolean> = {
+  const ZodlawStringProto: ThisType<z.ZodString> = {
     normalize() {
       return this.option({normalize: true});
     },
+
+    _configureOptions(strict?: boolean) {
+      return PatchUtils.zlOptsToYOpts(this._zodlaw() ?? {}, {
+        demandOption: strict,
+        describe: this._def.description,
+        type: 'string',
+      });
+    },
   };
 
-  Object.assign(assignZodlawOptionProto(ZodStringProto), ZodlawStringProto);
+  Object.assign(
+    PatchUtils.assignZodlawOptionProto(ZodStringProto),
+    ZodlawStringProto,
+  );
+
+  return zod;
+}
+
+function patchZodNumber(zod: typeof z) {
+  const ZodNumberProto = zod.ZodNumber.prototype;
+
+  /**
+   * method implementations specific to `ZodString`
+   */
+  const ZodlawNumberProto: ThisType<z.ZodNumber> = {
+    _configureOptions(strict?: boolean) {
+      return PatchUtils.zlOptsToYOpts(this._zodlaw() ?? {}, {
+        demandOption: strict,
+        describe: this._def.description,
+        type: 'number',
+      });
+    },
+  };
+
+  Object.assign(
+    PatchUtils.assignZodlawOptionProto(ZodNumberProto),
+    ZodlawNumberProto,
+  );
 
   return zod;
 }
 
 export function register(zod: typeof z) {
-  return Object.entries(Registrations)
+  return Object.entries(Monkeypatchers)
     .filter(([kind]) => !zod[kind as ZodlawKind].prototype[kZodlaw])
-    .reduce((zod, [, register]) => {
-      return register(zod);
-    }, zod);
+    .reduce((zod, [, register]) => register(zod), zod);
 }

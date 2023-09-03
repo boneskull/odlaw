@@ -1,39 +1,44 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import {expectType} from 'tsd';
-import {Argv} from 'yargs';
 import z from 'zod';
 import '../src/zod';
 
+// _zodlaw()
 expectType<z.ZodlawOptions | undefined>(z.boolean()._zodlaw());
 expectType<z.ZodlawOptions>(z.boolean().option()._zodlaw());
 
-expectType<Argv<Omit<{}, 'foo'> & {foo: boolean | undefined}>>(
+// common props
+expectType<{
+  type: 'boolean';
+  alias: ['bob', 'alice'];
+  global: true;
+  hidden: true;
+  deprecated: 'because alice quit tech';
+  defaultDescription: 'alice is a boolean';
+  group: `alice 'n' bob`;
+}>(
   z
     .boolean()
-    .option()
-    ._configureParser('foo', {} as Argv),
+    .alias(['bob', 'alice'])
+    .global()
+    .hidden()
+    .deprecated('because alice quit tech')
+    .defaultDescription('alice is a boolean')
+    .group(`alice 'n' bob`)
+    ._configureOptions(),
 );
 
-expectType<Argv<Omit<{}, 'foo'> & {foo: number}>>(
-  z
-    .boolean()
-    .option()
-    .count()
-    ._configureParser('foo', {} as Argv),
+// last one wins
+expectType<{type: 'boolean'; alias: 'bob'}>(
+  z.boolean().alias('alice').alias('bob')._configureOptions(),
 );
 
-expectType<Argv<Omit<{}, 'foo'> & {foo: number | undefined}>>(
-  z.number()._configureParser('foo', {} as Argv),
+// strict mode
+expectType<{type: 'boolean'; demandOption: true}>(
+  z.boolean()._configureOptions(true),
 );
 
-expectType<Argv<Omit<{}, 'foo'> & {foo: string | undefined}>>(
-  z.string()._configureParser('foo', {} as Argv),
-);
-
-expectType<Argv<Omit<{}, 'foo'> & {foo: string}>>(
-  z.string()._configureParser('foo', {} as Argv, true),
-);
-
-expectType<Argv<Omit<{}, 'foo'> & {foo: 'a' | 'b' | 'c' | undefined}>>(
-  z.enum(['a', 'b', 'c'])._configureParser('foo', {} as Argv),
+// boolean specific
+expectType<{type: 'boolean'; demandOption: false; count: true}>(
+  z.boolean().count()._configureOptions(),
 );

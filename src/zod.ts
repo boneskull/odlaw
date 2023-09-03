@@ -1,9 +1,5 @@
-import type {
-  Argv,
-  InferredOptionType,
-  InferredOptionTypes,
-  Options as YOptions,
-} from 'yargs';
+import type {SimpleMerge as Merge} from 'type-fest/source/merge.d.ts';
+import type {Argv, InferredOptionTypes, Options as YOptions} from 'yargs';
 import type z from 'zod';
 import type {kZodlaw} from './zodlaw';
 
@@ -13,6 +9,7 @@ declare module 'zod' {
    */
   type ZodlawOptions = Pick<
     YOptions,
+    | 'alias'
     | 'count'
     | 'defaultDescription'
     | 'deprecated'
@@ -80,10 +77,8 @@ declare module 'zod' {
     [kZodlaw]: true;
 
     /**
-     * @private
+     * @internal
      */
-    _newThis(): this;
-
     _zodlaw(): ZodlawData | undefined;
   }
 
@@ -101,24 +96,27 @@ declare module 'zod' {
    * Anything that has an `option()` method should extend this _and narrow each method_.
    */
   interface ZodlawOptionType extends ZodlawType<ZodlawOptions> {
-    _defaultType: ZodlawOptions['type'];
     option(config?: ZodlawOptions): ZodlawOptionType;
 
-    global?(): ZodlawOptionType;
+    global(): ZodlawOptionType;
 
-    hidden?(): ZodlawOptionType;
+    hidden(): ZodlawOptionType;
 
-    deprecated?(message?: string): ZodlawOptionType;
+    deprecated<M extends string | boolean>(message?: M): ZodlawOptionType;
 
-    defaultDescription?(defaultDescription?: string): ZodlawOptionType;
+    defaultDescription<M extends string>(
+      defaultDescription?: M,
+    ): ZodlawOptionType;
 
-    group?(name: string): ZodlawOptionType;
+    group<G extends string>(group: G): ZodlawOptionType;
 
     count?(): ZodlawOptionType;
 
     nargs?(count: number): ZodlawOptionType;
 
     normalize?(): ZodlawOptionType;
+
+    alias<A extends string | string[]>(alias: A): ZodlawOptionType;
 
     /**
      * This function is expected to be called within the context of a parent
@@ -128,7 +126,7 @@ declare module 'zod' {
      * Generally, you _don't_ want to demand options on the CLI, because it's
      * not ergonomic; provide _sensible defaults_ instead.
      */
-    _configureParser(name: string, yargs: Argv, strict?: boolean): Argv;
+    _configureOptions(strict?: boolean): YOptions;
   }
 
   /**
@@ -141,7 +139,12 @@ declare module 'zod' {
     Z extends z.ZodTypeAny & ZodlawOptionType,
     OValue extends Partial<ZodlawOptions>,
   > = Z & {
-    _def: Z['_def'] & {zodlawOptions: OValue};
+    _def: Merge<
+      Z['_def'],
+      Z['_def'] extends {zodlawOptions: infer ZLO}
+        ? {zodlawOptions: Merge<ZLO, OValue>}
+        : {zodlawOptions: OValue}
+    >;
   };
 
   interface ZodBoolean extends ZodlawOptionType {
@@ -154,26 +157,34 @@ declare module 'zod' {
           (this['_def'] extends {
             zodlawOptions: infer ZLO;
           }
-            ? {zodlawOptions: ZLO & O}
+            ? {zodlawOptions: Merge<ZLO, O>}
             : {zodlawOptions: O})
       >;
+
+    alias<const Alias extends string | string[]>(
+      alias: Alias,
+    ): ZodlawOptionsResult<this, {alias: Alias}>;
+
+    defaultDescription<const M extends string>(
+      defaultDescription?: M,
+    ): ZodlawOptionsResult<this, {defaultDescription: M}>;
+
+    group<const G extends string>(
+      group: G,
+    ): ZodlawOptionsResult<this, {group: G}>;
 
     global(): ZodlawOptionsResult<this, {global: true}>;
 
     hidden(): ZodlawOptionsResult<this, {hidden: true}>;
 
-    deprecated(message?: string): ZodlawOptionsResult<
+    deprecated<const M extends string | boolean>(
+      message?: M,
+    ): ZodlawOptionsResult<
       this,
       {
-        deprecated: typeof message extends string ? string : true;
+        deprecated: M;
       }
     >;
-
-    defaultDescription(
-      defaultDescription?: string,
-    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
-
-    group(name: string): ZodlawOptionsResult<this, {group: string}>;
 
     _zodlaw(): this['_def'] extends {
       zodlawOptions: infer Z extends ZodlawOptions;
@@ -187,28 +198,16 @@ declare module 'zod' {
      */
     count(): ZodlawOptionsResult<this, {count: true}>;
 
-    _configureParser<const OptName extends string, A, Strict extends boolean>(
-      name: OptName,
-      yargs: Argv<A>,
+    _configureOptions<Strict extends boolean>(
       strict?: Strict,
     ): this['_def'] extends {
-      zodlawOptions: infer Z extends ZodlawOptions;
+      zodlawOptions: infer ZLO;
     }
-      ? Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<
-              Z & {type: 'boolean'; demandOption: Strict}
-            >;
-          }
-        >
-      : Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<{
-              type: 'boolean';
-              demandOption: Strict;
-            }>;
-          }
-        >;
+      ? Merge<ZLO, {type: 'boolean'; demandOption: Strict}>
+      : {
+          type: 'boolean';
+          demandOption: Strict;
+        };
   }
 
   interface ZodNumber extends ZodlawOptionType {
@@ -224,23 +223,30 @@ declare module 'zod' {
             ? {zodlawOptions: ZLO & O}
             : {zodlawOptions: O})
       >;
+    alias<const Alias extends string | string[]>(
+      alias: Alias,
+    ): ZodlawOptionsResult<this, {alias: Alias}>;
 
     global(): ZodlawOptionsResult<this, {global: true}>;
 
     hidden(): ZodlawOptionsResult<this, {hidden: true}>;
 
-    deprecated(message?: string): ZodlawOptionsResult<
+    deprecated<const M extends string | boolean>(
+      message?: M,
+    ): ZodlawOptionsResult<
       this,
       {
-        deprecated: typeof message extends string ? string : true;
+        deprecated: M;
       }
     >;
 
-    defaultDescription(
-      defaultDescription?: string,
-    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
+    defaultDescription<const M extends string>(
+      defaultDescription?: M,
+    ): ZodlawOptionsResult<this, {defaultDescription: M}>;
 
-    group(name: string): ZodlawOptionsResult<this, {group: string}>;
+    group<const G extends string>(
+      group: G,
+    ): ZodlawOptionsResult<this, {group: G}>;
 
     nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
     _zodlaw(): this['_def'] extends {
@@ -249,28 +255,16 @@ declare module 'zod' {
       ? Z
       : ZodlawOptions | undefined;
 
-    _configureParser<const OptName extends string, A, Strict extends boolean>(
-      name: OptName,
-      yargs: Argv<A>,
+    _configureOptions<Strict extends boolean>(
       strict?: Strict,
     ): this['_def'] extends {
-      zodlawOptions: infer Z extends ZodlawOptions;
+      zodlawOptions: infer ZLO;
     }
-      ? Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<
-              Z & {type: 'number'; demandOption: Strict}
-            >;
-          }
-        >
-      : Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<{
-              type: 'number';
-              demandOption: Strict;
-            }>;
-          }
-        >;
+      ? Merge<ZLO, {type: 'number'; demandOption: Strict}>
+      : {
+          type: 'number';
+          demandOption: Strict;
+        };
   }
 
   interface ZodString extends ZodlawOptionType {
@@ -286,23 +280,30 @@ declare module 'zod' {
             ? {zodlawOptions: ZLO & O}
             : {zodlawOptions: O})
       >;
+    alias<const Alias extends string | string[]>(
+      alias: Alias,
+    ): ZodlawOptionsResult<this, {alias: Alias}>;
+
+    defaultDescription<const M extends string>(
+      defaultDescription?: M,
+    ): ZodlawOptionsResult<this, {defaultDescription: M}>;
+
+    group<const G extends string>(
+      group: G,
+    ): ZodlawOptionsResult<this, {group: G}>;
 
     global(): ZodlawOptionsResult<this, {global: true}>;
 
     hidden(): ZodlawOptionsResult<this, {hidden: true}>;
 
-    deprecated(message?: string): ZodlawOptionsResult<
+    deprecated<const M extends string | boolean>(
+      message?: M,
+    ): ZodlawOptionsResult<
       this,
       {
-        deprecated: typeof message extends string ? string : true;
+        deprecated: M;
       }
     >;
-
-    defaultDescription(
-      defaultDescription?: string,
-    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
-
-    group(name: string): ZodlawOptionsResult<this, {group: string}>;
 
     nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
 
@@ -314,34 +315,18 @@ declare module 'zod' {
       ? Z
       : ZodlawOptions | undefined;
 
-    _configureParser<const OptName extends string, A, Strict extends boolean>(
-      name: OptName,
-      yargs: Argv<A>,
+    _configureOptions<Strict extends boolean>(
       strict?: Strict,
     ): this['_def'] extends {
-      zodlawOptions: infer Z extends ZodlawOptions;
+      zodlawOptions: infer ZLO;
     }
-      ? Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<
-              Z & {
-                type: 'string';
-                demandOption: Strict;
-              }
-            >;
-          }
-        >
-      : Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<{
-              type: 'string';
-              demandOption: Strict;
-            }>;
-          }
-        >;
+      ? Merge<ZLO, {type: 'string'; demandOption: Strict}>
+      : {
+          type: 'string';
+          demandOption: Strict;
+        };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ZodEnum<T extends [string, ...string[]]> extends ZodlawOptionType {
     option<O extends ZodlawOptions>(
       config?: O,
@@ -355,23 +340,30 @@ declare module 'zod' {
             ? {zodlawOptions: ZLO & O}
             : {zodlawOptions: O})
       >;
+    alias<const Alias extends string | string[]>(
+      alias: Alias,
+    ): ZodlawOptionsResult<this, {alias: Alias}>;
+
+    defaultDescription<const M extends string>(
+      defaultDescription?: M,
+    ): ZodlawOptionsResult<this, {defaultDescription: M}>;
+
+    group<const G extends string>(
+      group: G,
+    ): ZodlawOptionsResult<this, {group: G}>;
 
     global(): ZodlawOptionsResult<this, {global: true}>;
 
     hidden(): ZodlawOptionsResult<this, {hidden: true}>;
 
-    deprecated(message?: string): ZodlawOptionsResult<
+    deprecated<const M extends string | boolean>(
+      message?: M,
+    ): ZodlawOptionsResult<
       this,
       {
-        deprecated: typeof message extends string ? string : true;
+        deprecated: M;
       }
     >;
-
-    defaultDescription(
-      defaultDescription?: string,
-    ): ZodlawOptionsResult<this, {defaultDescription: string}>;
-
-    group(name: string): ZodlawOptionsResult<this, {group: string}>;
 
     nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
 
@@ -381,32 +373,17 @@ declare module 'zod' {
       ? Z
       : ZodlawOptions | undefined;
 
-    _configureParser<const OptName extends string, A, Strict extends boolean>(
-      name: OptName,
-      yargs: Argv<A>,
+    _configureOptions<Strict extends boolean>(
       strict?: Strict,
     ): this['_def'] extends {
-      zodlawOptions: infer Z extends ZodlawOptions;
-      values: infer T;
+      zodlawOptions: infer ZLO;
     }
-      ? Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<
-              Z & {choices: T; demandOption: Strict}
-            >;
-          }
-        >
-      : Argv<
-          Omit<A, OptName> & {
-            [K in OptName]: InferredOptionType<{
-              choices: T;
-              demandOption: Strict;
-            }>;
-          }
-        >;
+      ? Merge<ZLO, {choices: T; demandOption: Strict}>
+      : {
+          choices: T;
+          demandOption: Strict;
+        };
   }
-
-  type blah = InferredOptionType<{choices: ['a', 'b', 'c']}>;
 
   interface ZodObject<
     T extends z.ZodRawShape,
@@ -425,27 +402,23 @@ declare module 'zod' {
      * @param yargs Yargs instance
      * @returns A Yargs instance with whatever config comes out of the schema
      */
-    _configureParser(yargs: Argv): this['_def'] extends {
+    _configureParser<Y>(yargs: Argv<Y>): this['_def'] extends {
       zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
     }
-      ? Argv<Omit<Output, keyof Output>> & InferredOptionTypes<Z>
-      : Argv;
+      ? Argv<Merge<Y, InferredOptionTypes<Z>>>
+      : Argv<Y>;
 
-    options(config?: ZodlawOptionsRecord): z.ZodObject<
-      T,
-      UnknownKeys,
-      Catchall,
-      Output,
-      Input
-    > &
+    options<Z extends ZodlawOptionsRecord>(
+      config?: Z,
+    ): z.ZodObject<T, UnknownKeys, Catchall, Output, Input> &
       z.ZodType<
         T,
         this['_def'] &
           (this['_def'] extends {
-            zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
+            zodlawOptionsRecord: infer ZLO;
           }
-            ? {zodlawOptionsRecord: Z & ZodlawOptionsRecord}
-            : {zodlawOptionsRecord: ZodlawOptionsRecord}),
+            ? {zodlawOptionsRecord: Merge<ZLO, Z>}
+            : {zodlawOptionsRecord: Z}),
         Input
       >;
   }
