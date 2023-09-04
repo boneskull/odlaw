@@ -9,19 +9,55 @@ const Monkeypatchers = {
   [z.ZodFirstPartyTypeKind.ZodString]: patchZodString,
   [z.ZodFirstPartyTypeKind.ZodNumber]: patchZodNumber,
   [z.ZodFirstPartyTypeKind.ZodEnum]: patchZodEnum,
-  // [z.ZodFirstPartyTypeKind.ZodArray]: registerZodArray,
+  [z.ZodFirstPartyTypeKind.ZodArray]: patchZodArray,
   [z.ZodFirstPartyTypeKind.ZodObject]: patchZodObject,
 };
 
 type ZodlawKind = keyof typeof Monkeypatchers;
+
+function isZodEffects(schema: any): schema is z.ZodEffects<z.ZodTypeAny> {
+  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodEffects;
+}
+
+function isZodDefault(schema: any): schema is z.ZodDefault<z.ZodTypeAny> {
+  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodDefault;
+}
+
+function isZodBranded(schema: any): schema is z.ZodBranded<any, any> {
+  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodBranded;
+}
+
+function isZodArray(schema: any): schema is z.ZodArray<z.ZodTypeAny> {
+  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodArray;
+}
 
 /**
  * Utilties for the patchers
  * @internal
  */
 const PatchUtils = {
-  clone<T extends z.ZodTypeAny>(zt: T): T {
-    return new (zt.constructor as any)(zt._def);
+  isZodEffects(schema: z.ZodTypeAny): schema is z.ZodEffects<z.ZodTypeAny> {
+    return schema._def.typeName === z.ZodFirstPartyTypeKind.ZodEffects;
+  },
+
+  getSource(schema: z.ZodTypeAny): z.ZodTypeAny {
+    if (isZodEffects(schema)) {
+      return schema.sourceType();
+    }
+    if (isZodDefault(schema)) {
+      return PatchUtils.getSource(schema._def.innerType);
+    }
+    if (isZodBranded(schema)) {
+      return PatchUtils.getSource(schema._def.type);
+    }
+    if (isZodArray(schema)) {
+      return PatchUtils.getSource(schema.element);
+    }
+    return schema;
+  },
+
+  clone<Z extends z.ZodTypeAny>(schema: Z): Z {
+    return new (schema.constructor as any)(schema._def);
   },
 
   /**
@@ -63,8 +99,10 @@ const PatchUtils = {
     };
   },
 
-  assignZodlawOptionProto<T extends z.ZodlawOptionType>(proto: T) {
-    const CommonProto: ThisType<T & z.AnyZodlaw> = {
+  assignZodlawOptionProto<T extends z.ZodlawOptionType & z.ZodTypeAny>(
+    proto: T,
+  ) {
+    const CommonProto: ThisType<T> = {
       _zodlaw(): z.ZodlawOptions | undefined {
         return this._def.zodlawOptions;
       },
@@ -247,6 +285,43 @@ function patchZodString(zod: typeof z) {
   Object.assign(
     PatchUtils.assignZodlawOptionProto(ZodStringProto),
     ZodlawStringProto,
+  );
+
+  return zod;
+}
+
+function patchZodArray(zod: typeof z) {
+  const ZodArrayProto = zod.ZodArray.prototype;
+
+  /**
+   * method implementations specific to `ZodString`
+   */
+  const ZodlawArrayProto: ThisType<z.ZodArray<z.ZodTypeAny>> = {
+    normalize() {
+      return this.option({normalize: true});
+    },
+
+    _configureOptions(strict?: boolean) {
+      const sourceType = PatchUtils.getSource(this);
+
+      if (sourceType._def.typeName !== z.ZodFirstPartyTypeKind.ZodString) {
+        throw new TypeError(
+          `Cannot convert ZodArray to Yargs options; element type must be ZodString, got ${sourceType}`,
+        );
+      }
+
+      return PatchUtils.zlOptsToYOpts(this._zodlaw() ?? {}, {
+        demandOption: strict,
+        describe: this._def.description,
+        type: 'string',
+        array: true,
+      });
+    },
+  };
+
+  Object.assign(
+    PatchUtils.assignZodlawOptionProto(ZodArrayProto),
+    ZodlawArrayProto,
   );
 
   return zod;

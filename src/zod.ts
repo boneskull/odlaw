@@ -1,6 +1,6 @@
 import type {SimpleMerge as Merge} from 'type-fest/source/merge.d.ts';
 import type {Argv, InferredOptionTypes, Options as YOptions} from 'yargs';
-import type z from 'zod';
+import z from 'zod';
 import type {kZodlaw} from './zodlaw';
 
 declare module 'zod' {
@@ -13,6 +13,7 @@ declare module 'zod' {
     | 'count'
     | 'defaultDescription'
     | 'deprecated'
+    | 'describe'
     | 'global'
     | 'group'
     | 'hidden'
@@ -147,6 +148,70 @@ declare module 'zod' {
     >;
   };
 
+  interface ZodArray<
+    T extends z.ZodTypeAny,
+    Cardinality extends z.ArrayCardinality = 'many',
+  > extends ZodlawOptionType {
+    option<O extends ZodlawOptions>(
+      config?: O,
+    ): this &
+      z.ZodType<
+        z.arrayOutputType<T, Cardinality>,
+        this['_def'] &
+          (this['_def'] extends {
+            zodlawOptions: infer ZLO;
+          }
+            ? {zodlawOptions: Merge<ZLO, O>}
+            : {zodlawOptions: O})
+      >;
+    alias<const Alias extends string | string[]>(
+      alias: Alias,
+    ): ZodlawOptionsResult<this, {alias: Alias}>;
+
+    defaultDescription<const M extends string>(
+      defaultDescription?: M,
+    ): ZodlawOptionsResult<this, {defaultDescription: M}>;
+
+    group<const G extends string>(
+      group: G,
+    ): ZodlawOptionsResult<this, {group: G}>;
+
+    global(): ZodlawOptionsResult<this, {global: true}>;
+
+    hidden(): ZodlawOptionsResult<this, {hidden: true}>;
+
+    deprecated<const M extends string | boolean>(
+      message?: M,
+    ): ZodlawOptionsResult<
+      this,
+      {
+        deprecated: M;
+      }
+    >;
+
+    nargs(count: number): ZodlawOptionsResult<this, {nargs: number}>;
+
+    normalize(): ZodlawOptionsResult<this, {normalize: true}>;
+
+    _zodlaw(): this['_def'] extends {
+      zodlawOptions: infer Z extends ZodlawOptions;
+    }
+      ? Z
+      : ZodlawOptions | undefined;
+
+    _configureOptions<Strict extends boolean>(
+      strict?: Strict,
+    ): this['_def'] extends {
+      zodlawOptions: infer ZLO;
+    }
+      ? Merge<ZLO, {type: 'string'; demandOption: Strict; array: true}>
+      : {
+          type: 'string';
+          array: true;
+          demandOption: Strict;
+        };
+  }
+
   interface ZodBoolean extends ZodlawOptionType {
     option<O extends ZodlawOptions>(
       config?: O,
@@ -280,6 +345,7 @@ declare module 'zod' {
             ? {zodlawOptions: ZLO & O}
             : {zodlawOptions: O})
       >;
+
     alias<const Alias extends string | string[]>(
       alias: Alias,
     ): ZodlawOptionsResult<this, {alias: Alias}>;
