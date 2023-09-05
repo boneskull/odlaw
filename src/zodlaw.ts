@@ -70,6 +70,10 @@ export function register(zod: typeof z) {
       return this.option({nargs});
     },
 
+    demandOption() {
+      return this.option({demandOption: true});
+    },
+
     option(config?: ZodlawOptions) {
       const zodlawOptions = this._def.zodlawOptions;
       this._def.zodlawOptions = zodlawOptions

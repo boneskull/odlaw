@@ -22,6 +22,7 @@ declare module 'zod' {
     | 'alias'
     | 'count'
     | 'defaultDescription'
+    | 'demandOption'
     | 'deprecated'
     | 'describe'
     | 'global'
@@ -104,6 +105,8 @@ declare module 'zod' {
 
     count(): ZodlawOptionsType<{count: true}, this>;
 
+    demandOption(): ZodlawOptionsType<{demandOption: true}, this>;
+
     nargs(nargs: number): ZodlawOptionsType<{nargs: number}, this>;
 
     normalize(): ZodlawOptionsType<{normalize: true}, this>;
@@ -127,16 +130,23 @@ declare module 'zod' {
       {demandOption: Strict; describe?: string; type: ZodToYargsType<Input>}
     >;
 
-    _toYargs<Y, Strict extends boolean = false>(
-      argv: yargs.Argv<Y>,
-      strict?: Strict,
-    ): this['_def'] extends ZodObjectDef<infer Shape, any, any>
+    _toYargs<Y>(argv: yargs.Argv<Y>): this['_def'] extends ZodObjectDef<
+      infer Shape,
+      any,
+      any
+    >
       ? yargs.Argv<
           Y & {
             [K in keyof Shape]: SimpleMerge<
               Shape[K]['_def']['zodlawOptions'],
               {
-                demandOption: Strict;
+                demandOption: Shape[K]['_def']['zodlawOptions'] extends {
+                  demandOption: true;
+                }
+                  ? true
+                  : Def extends {unknownKeys: 'strict'}
+                  ? true
+                  : false;
                 describe?: string;
                 // this will already be present; we don't have to add it in the impl
                 type: ZodToYargsType<Shape[K]['_input']>;

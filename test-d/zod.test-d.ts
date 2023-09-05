@@ -58,5 +58,38 @@ expectType<
       bar: z.string(),
       baz: z.number(),
     })
-    ._toYargs({} as yargs.Argv, false),
+    ._toYargs({} as yargs.Argv),
+);
+
+expectType<
+  yargs.Argv<{
+    foo: {type: 'boolean'; demandOption: true};
+    bar: {type: 'string'; demandOption: true};
+    baz: {type: 'number'; demandOption: true};
+  }>
+>(
+  z
+    .object({
+      foo: z.boolean(),
+      bar: z.string(),
+      baz: z.number(),
+    })
+    .strict()
+    ._toYargs({} as yargs.Argv),
+);
+
+expectType<
+  yargs.Argv<{
+    foo: {type: 'boolean'; demandOption: true};
+    bar: {type: 'string'; demandOption: false};
+    baz: {type: 'number'; demandOption: false};
+  }>
+>(
+  z
+    .object({
+      foo: z.boolean().demandOption(),
+      bar: z.string(),
+      baz: z.number(),
+    })
+    ._toYargs({} as yargs.Argv),
 );
