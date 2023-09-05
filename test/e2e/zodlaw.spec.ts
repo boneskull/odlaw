@@ -28,6 +28,12 @@ describe('zodlaw', function () {
         defaultDescription: 'cows',
       });
     });
+
+    describe('when called on an unsupported type', function () {
+      it('should throw', function () {
+        expect(() => z.date()._toYargsOptions(true), 'to throw a', TypeError);
+      });
+    });
   });
 
   describe('_toYargs()', function () {
