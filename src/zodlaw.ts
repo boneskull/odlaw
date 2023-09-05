@@ -1,57 +1,23 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable no-use-before-define */
 import type * as yargs from 'yargs';
-import z from 'zod';
+import {ZodlawOptions, z} from 'zod';
 import './zod';
 export const kZodlaw: unique symbol = Symbol('kZodlaw');
-
-function isZodEffects(schema: any): schema is z.ZodEffects<z.ZodTypeAny> {
-  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodEffects;
-}
-
-function isZodDefault(schema: any): schema is z.ZodDefault<z.ZodTypeAny> {
-  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodDefault;
-}
-
-function isZodBranded(schema: any): schema is z.ZodBranded<any, any> {
-  return schema?._def?.typeName === z.ZodFirstPartyTypeKind.ZodBranded;
-}
 
 /**
  * Utilties for the patchers
  * @internal
  */
 const PatchUtils = {
-  zodTypeToYargsType(schema: z.ZodTypeAny): yargs.Options['type'] {
-    const source = PatchUtils.getSource(schema);
-    if (
-      source instanceof z.ZodString ||
-      source instanceof z.ZodEnum ||
-      (source instanceof z.ZodArray &&
-        source.element._def.typeName === z.ZodFirstPartyTypeKind.ZodString)
-    ) {
-      return 'string';
-    }
-    if (source instanceof z.ZodBoolean) {
-      return 'boolean';
-    }
-    if (source instanceof z.ZodNumber) {
-      return 'number';
-    }
-    throw new TypeError('Unknown type: ' + source._def.typeName);
-  },
-
-  isZodEffects(schema: z.ZodTypeAny): schema is z.ZodEffects<z.ZodTypeAny> {
-    return schema._def.typeName === z.ZodFirstPartyTypeKind.ZodEffects;
-  },
-
   getSource(schema: z.ZodTypeAny): z.ZodTypeAny {
-    if (isZodEffects(schema)) {
+    if (schema instanceof z.ZodEffects) {
       return schema.sourceType();
     }
-    if (isZodDefault(schema)) {
+    if (schema instanceof z.ZodDefault) {
       return PatchUtils.getSource(schema._def.innerType);
     }
-    if (isZodBranded(schema)) {
+    if (schema instanceof z.ZodBranded) {
       return PatchUtils.getSource(schema._def.type);
     }
     return schema;
@@ -59,45 +25,6 @@ const PatchUtils = {
 
   clone<Z extends z.ZodTypeAny>(schema: Z): Z {
     return new (schema.constructor as any)(schema._def);
-  },
-
-  /**
-   * Type guard for {@linkcode ZodlawOptionType}
-   * @param value Some Zod Type
-   * @returns `true` if the `ZodType` is also a `ZodlawOptionType`
-   */
-  isZodlawOptionType<T extends z.ZodTypeAny>(
-    value: T,
-  ): value is T & z.ZodlawOptionType<any, T> {
-    return (
-      '_zodlaw' in value &&
-      typeof value._zodlaw === 'function' &&
-      'option' in value &&
-      typeof value.option === 'function'
-    );
-  },
-
-  /**
-   * This is fairly defensive, but I wanted to be explicit about what we're passing around.
-   * @param zlOpts - {@linkcode ZodlawOptions}
-   * @param classSpecificOpts - Extra config that is specific to the `ZodType`
-   * @returns Options for `yargs.option()`
-   */
-  zlOptsToYOpts(
-    zlOpts: z.ZodlawOptions,
-    classSpecificOpts: Partial<yargs.Options>,
-  ): yargs.Options {
-    return {
-      alias: zlOpts.alias,
-      count: zlOpts.count,
-      defaultDescription: zlOpts.defaultDescription,
-      deprecated: zlOpts.deprecated,
-      global: zlOpts.global,
-      group: zlOpts.group,
-      hidden: zlOpts.hidden,
-      nargs: zlOpts.nargs,
-      ...classSpecificOpts,
-    };
   },
 };
 
@@ -143,19 +70,13 @@ export function register(zod: typeof z) {
       return this.option({nargs});
     },
 
-    option(config?: z.ZodlawOptions) {
-      const zodlawOptions = this._def.zodlawOptions();
+    option(config?: ZodlawOptions) {
+      const zodlawOptions = this._def.zodlawOptions;
       this._def.zodlawOptions = zodlawOptions
-        ? {...zodlawOptions, ...config}
-        : config;
-
-      return PatchUtils.clone(this);
-    },
-
-    options(config?: z.ZodlawOptionsRecord) {
-      const zodlawOptionsRecord = this._def.zodlawOptionsRecord;
-      this._def.zodlawOptionsRecord = zodlawOptionsRecord
-        ? {...zodlawOptionsRecord, ...config}
+        ? {
+            ...zodlawOptions,
+            ...config,
+          }
         : config;
 
       return PatchUtils.clone(this);
@@ -165,8 +86,7 @@ export function register(zod: typeof z) {
       return {
         ...this._def.zodlawOptions,
         demandOption: strict,
-        describe: this.description ?? this._def.zodlawOptions?.describe,
-        type: PatchUtils.zodTypeToYargsType(this),
+        describe: this._def.description ?? this._def.zodlawOptions?.describe,
       };
     },
 
@@ -175,32 +95,55 @@ export function register(zod: typeof z) {
         throw new TypeError('Expected ZodObject');
       }
 
-      /**
-       * Any `ZodlawOptions` created via this `ZodObject` itself
-       */
-      const zlOptionsRecord = this._def.zodlawOptionsRecord;
+      // /**
+      //  * Any `ZodlawOptions` created via this `ZodObject` itself
+      //  */
+      // const zlOptionsRecord = this._def.zodlawOptionsRecord;
 
-      if (zlOptionsRecord) {
-        // todo: allow `.strict()` on `AnyZodlawType`
-        const strict =
-          'unknownKeys' in this._def && this._def.unknownKeys === 'strict';
-        return argv.options(
-          Object.entries(this.shape).reduce(
-            (zlOptionsRecord, [key, value]) => ({
-              ...zlOptionsRecord,
+      const strict =
+        'unknownKeys' in this._def && this._def.unknownKeys === 'strict';
 
-              [key]: {
-                ...zlOptionsRecord[key],
-                ...(value as z.ZodTypeAny)._toYargsOptions(strict),
-              },
-            }),
-            zlOptionsRecord,
-          ),
-        );
-      }
-      return argv;
+      const yOpts = Object.entries(this.shape).reduce(
+        (zlOptionsRecord, [key, value]) => {
+          zlOptionsRecord[key] = (value as z.ZodTypeAny)._toYargsOptions(
+            strict,
+          );
+          return zlOptionsRecord;
+        },
+        {} as Record<string, yargs.Options>,
+      );
+
+      return argv.options(yOpts);
     },
   });
+
+  /**
+   * @remarks Things that didn't work include:
+   * 1. Creating a `Proxy` and assigning it to `zod`; the exports are defined via `Object.defineProperty` and are not configurable.
+   * 2. Creating a `Proxy` or wrapper around the static `create()` function of the various classes; this works _sometimes_, but `create()` is not guaranteed to be called. The only thing we can rely on is the constructor.
+   * 3. Deriving the type from the class itself. {@linkcode z.ZodType._input} is _not_ a real value, which is a clever trick. It's a way to "pin" the expected input type to the class itself; the `Input` type argument of a `ZodType` is then always available as `ZodType['_input']`; this saves needing to pass the type argument around everywhere. Or--at least--that's what I _think_ the intent is.
+   * @param ctor Subclass of {@linkcode z.ZodType}
+   * @param type Yargs option type
+   */
+  function injectZodlawOptions<T>(ctor: T, type: yargs.Options['type']) {
+    abstract class ZodlawType<
+      Output = any,
+      Def extends z.ZodTypeDef = z.ZodTypeDef,
+      Input = Output,
+    > extends z.ZodType<Output, Def, Input> {
+      constructor(def: Def) {
+        super({...def, zodlawOptions: {...def.zodlawOptions, type}});
+      }
+    }
+
+    Object.setPrototypeOf(ctor, ZodlawType);
+  }
+
+  injectZodlawOptions(zod.ZodBoolean, 'boolean');
+  injectZodlawOptions(zod.ZodString, 'string');
+  injectZodlawOptions(zod.ZodNumber, 'number');
+  injectZodlawOptions(zod.ZodArray, 'array');
+  injectZodlawOptions(zod.ZodEnum, 'string');
 
   return zod;
 }

@@ -1,22 +1,19 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type {SimpleMerge} from 'type-fest/source/merge.d.ts';
+import {SimpleMerge} from 'type-fest/source/merge';
 import type * as yargs from 'yargs';
-import z from 'zod';
+import z, {ZodObjectDef} from 'zod';
 import type {kZodlaw} from './zodlaw';
 
-type ZodToYargsType<T extends z.ZodTypeAny> = T extends z.ZodBoolean
-  ? 'boolean'
-  : T extends z.ZodString
-  ? 'string'
-  : T extends z.ZodNumber
-  ? 'number'
-  : T extends z.ZodArray<infer E>
-  ? ZodToYargsType<E>
-  : T extends z.ZodEnum<any>
-  ? 'string'
-  : undefined;
 declare module 'zod' {
+  type ZodToYargsType<Input> = Input extends boolean
+    ? 'boolean'
+    : Input extends number
+    ? 'number'
+    : Input extends string | [string, ...string[]] | string[]
+    ? 'string'
+    : never;
+
   /**
    * Option config from {@linkcode YOptions yargs.Options} which cannot be expressed via Zod itself
    */
@@ -35,39 +32,41 @@ declare module 'zod' {
     | 'type'
   >;
 
-  type ZodlawOptionsRecord = Record<string, ZodlawOptions>;
-
-  type ZodlawOptionType<
+  type ZodlawOptionsType<
     ZO extends ZodlawOptions,
     T extends z.ZodTypeAny,
   > = z.ZodType<
     T['_output'],
-    SimpleMerge<
-      T['_def'],
-      T['_def'] extends {zodlawOptions: infer Z}
-        ? {zodlawOptions: SimpleMerge<Z, ZO>}
-        : {zodlawOptions: ZO}
-    >,
+    T['_def'] & T['_def'] extends {zodlawOptions: infer Z}
+      ? {zodlawOptions: SimpleMerge<Z, ZO>}
+      : {zodlawOptions: ZO},
     T['_input']
   >;
 
-  type ZodlawOptionsType<
-    ZOR extends ZodlawOptionsRecord,
-    T extends z.ZodTypeAny,
-  > = z.ZodType<
-    T['_output'],
-    SimpleMerge<
-      T['_def'],
-      T['_def'] extends {zodlawOptionsRecord: infer Z}
-        ? {zodlawOptions: SimpleMerge<Z, ZOR>}
-        : {zodlawOptions: ZOR}
-    >,
-    T['_input']
-  >;
+  type ZodlawOptionsForShape<T extends z.AnyZodObject> = {
+    [K in keyof T['shape']]: ZodlawOptionsType<
+      T['shape'][K]['_def']['zodlawOptions'],
+      T['shape'][K]
+    >['_def']['zodlawOptions'];
+  };
+
+  // type ZodlawOptionsType<
+  //   ZOR extends ZodlawOptionsRecord,
+  //   T extends z.ZodTypeAny,
+  // > = z.ZodType<
+  //   T['_output'],
+  //   SimpleMerge<
+  //     T['_def'],
+  //     T['_def'] extends {zodlawOptionsRecord: infer Z}
+  //       ? {zodlawOptions: SimpleMerge<Z, ZOR>}
+  //       : {zodlawOptions: ZOR}
+  //   >,
+  //   T['_input']
+  // >;
 
   interface ZodTypeDef {
-    zodlawOptions?: ZodlawOptions;
-    zodlawOptionsRecord?: ZodlawOptionsRecord;
+    zodlawOptions: ZodlawOptions;
+    // zodlawOptionsRecord?: ZodlawOptionsRecord;
   }
 
   /**
@@ -83,35 +82,35 @@ declare module 'zod' {
      */
     [kZodlaw]: true;
 
-    option<ZO extends ZodlawOptions>(config?: ZO): ZodlawOptionType<ZO, this>;
+    option<ZO extends ZodlawOptions>(config?: ZO): ZodlawOptionsType<ZO, this>;
 
-    options<ZOR extends ZodlawOptionsRecord>(
-      config?: ZOR,
-    ): ZodlawOptionsType<ZOR, this>;
+    // options<ZOR extends ZodlawOptionsRecord>(
+    //   config?: ZOR,
+    // ): ZodlawOptionsType<ZOR, this>;
 
-    global(): ZodlawOptionType<{global: true}, this>;
+    global(): ZodlawOptionsType<{global: true}, this>;
 
-    hidden(): ZodlawOptionType<{hidden: true}, this>;
+    hidden(): ZodlawOptionsType<{hidden: true}, this>;
 
     deprecated<M extends string | boolean>(
       message?: M,
-    ): ZodlawOptionType<{deprecated: M}, this>;
+    ): ZodlawOptionsType<{deprecated: M}, this>;
 
     defaultDescription<M extends string>(
       defaultDescription?: M,
-    ): ZodlawOptionType<{defaultDescription: M}, this>;
+    ): ZodlawOptionsType<{defaultDescription: M}, this>;
 
-    group<G extends string>(group: G): ZodlawOptionType<{group: G}, this>;
+    group<G extends string>(group: G): ZodlawOptionsType<{group: G}, this>;
 
-    count(): ZodlawOptionType<{count: true}, this>;
+    count(): ZodlawOptionsType<{count: true}, this>;
 
-    nargs(nargs: number): ZodlawOptionType<{nargs: number}, this>;
+    nargs(nargs: number): ZodlawOptionsType<{nargs: number}, this>;
 
-    normalize(): ZodlawOptionType<{normalize: true}, this>;
+    normalize(): ZodlawOptionsType<{normalize: true}, this>;
 
-    alias<A extends string | string[]>(
-      alias: A,
-    ): ZodlawOptionType<{alias: A}, this>;
+    alias(
+      alias: string | readonly string[],
+    ): ZodlawOptionsType<{alias: string | readonly string[]}, this>;
 
     /**
      * This function is expected to be called within the context of a parent
@@ -123,19 +122,28 @@ declare module 'zod' {
      */
     _toYargsOptions<Strict extends boolean>(
       strict: Strict,
-    ): ZodlawOptionType<
-      {
-        demandOption: Strict;
-        describe?: string;
-        type: ZodToYargsType<this>;
-      },
-      this
+    ): SimpleMerge<
+      this['_def']['zodlawOptions'],
+      {demandOption: Strict; describe?: string; type: ZodToYargsType<Input>}
     >;
 
-    _toYargs<Y>(yargs: yargs.Argv<Y>): this['_def'] extends {
-      zodlawOptionsRecord: infer Z extends ZodlawOptionsRecord;
-    }
-      ? yargs.Argv<SimpleMerge<Y, yargs.InferredOptionTypes<Z>>>
+    _toYargs<Y, Strict extends boolean = false>(
+      argv: yargs.Argv<Y>,
+      strict?: Strict,
+    ): this['_def'] extends ZodObjectDef<infer Shape, any, any>
+      ? yargs.Argv<
+          Y & {
+            [K in keyof Shape]: SimpleMerge<
+              Shape[K]['_def']['zodlawOptions'],
+              {
+                demandOption: Strict;
+                describe?: string;
+                // this will already be present; we don't have to add it in the impl
+                type: ZodToYargsType<Shape[K]['_input']>;
+              }
+            >;
+          }
+        >
       : yargs.Argv<Y>;
   }
 }

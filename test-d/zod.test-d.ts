@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import {expectType} from 'tsd';
+import type * as yargs from 'yargs';
 import z from 'zod';
 import '../src/zod';
 
@@ -10,12 +11,13 @@ expectType<z.ZodlawOptions>(z.boolean().option()._def.zodlawOptions);
 // common props
 expectType<{
   type: 'boolean';
-  alias: ['bob', 'alice'];
+  alias: string | readonly string[];
   global: true;
   hidden: true;
   deprecated: 'because alice quit tech';
   defaultDescription: 'alice is a boolean';
   group: `alice 'n' bob`;
+  demandOption: false;
 }>(
   z
     .boolean()
@@ -25,12 +27,12 @@ expectType<{
     .deprecated('because alice quit tech')
     .defaultDescription('alice is a boolean')
     .group(`alice 'n' bob`)
-    ._toYargsOptions(),
+    ._toYargsOptions(false),
 );
 
 // last one wins
-expectType<{type: 'boolean'; alias: 'bob'}>(
-  z.boolean().alias('alice').alias('bob')._toYargsOptions(),
+expectType<{type: 'boolean'; alias: string | readonly string[]}>(
+  z.boolean().alias('alice').alias('bob')._toYargsOptions(false),
 );
 
 // strict mode
@@ -40,5 +42,21 @@ expectType<{type: 'boolean'; demandOption: true}>(
 
 // boolean specific
 expectType<{type: 'boolean'; demandOption: false; count: true}>(
-  z.boolean().count()._toYargsOptions(),
+  z.boolean().count()._toYargsOptions(false),
+);
+
+expectType<
+  yargs.Argv<{
+    foo: {type: 'boolean'; demandOption: false};
+    bar: {type: 'string'; demandOption: false};
+    baz: {type: 'number'; demandOption: false};
+  }>
+>(
+  z
+    .object({
+      foo: z.boolean(),
+      bar: z.string(),
+      baz: z.number(),
+    })
+    ._toYargs({} as yargs.Argv, false),
 );

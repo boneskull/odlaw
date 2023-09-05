@@ -1,5 +1,5 @@
 import unexpected from 'unexpected';
-import yargs from 'yargs/yargs';
+import yargs from 'yargs';
 import zod from 'zod';
 import {register} from '../../src/zodlaw';
 
@@ -15,27 +15,22 @@ describe('zodlaw', function () {
     });
   });
 
-  describe('createParser()', function () {
-    it('should return a parser that parses args', async function () {
-      const schema = z
-        .object({
-          foo: z
-            .boolean()
-            .describe('Some flag')
-            .option({defaultDescription: 'foo means stuff'}),
-        })
-        .options();
-      await expect(
-        schema._configureParser(yargs(['--foo', 'bar', 'baz'])).getHelp(),
-        'to be fulfilled with value satisfying',
-        /foo means stuff/,
-      );
-
-      // expect(result, 'to satisfy', {_: ['baz'], foo: 'bar'});
+  describe('_toYargsOptions()', function () {
+    it('should return a parser that parses args', function () {
+      const schema = z.object({
+        foo: z.boolean().describe('pigs').option({
+          defaultDescription: 'cows',
+        }),
+      });
+      expect(schema.shape.foo._toYargsOptions(false), 'to satisfy', {
+        type: 'boolean',
+        describe: 'pigs',
+        defaultDescription: 'cows',
+      });
     });
   });
 
-  describe('options', function () {
+  describe('_toYargs()', function () {
     it('should not throw', function () {
       expect(
         () =>
@@ -43,36 +38,26 @@ describe('zodlaw', function () {
             .object({
               foo: z.boolean(),
             })
-            .options({
-              foo: {
-                hidden: true,
-              },
-            }),
+            ._toYargs(yargs),
         'not to throw',
       );
     });
 
     describe('createParser()', function () {
-      const schema = z
-        .object({
-          foo: z.string().describe('One foo only'),
-        })
-        .options({
-          foo: {
-            nargs: 1,
-          },
-        });
+      const schema = z.object({
+        foo: z.string().describe('One foo only'),
+      });
 
       it('should return a parser that parses args', function () {
         const result = schema
-          ._configureParser(yargs(['--foo', 'bar', 'baz']))
+          ._toYargs(yargs(['--foo', 'bar', 'baz']))
           .parseSync();
         expect(result, 'to satisfy', {_: ['baz'], foo: 'bar'});
       });
 
       it('should pull description out of zod', async function () {
         const result = await schema
-          ._configureParser(yargs(['--foo', 'bar', 'baz']))
+          ._toYargs(yargs(['--foo', 'bar', 'baz']))
           .getHelp();
         expect(result, 'to match', /--foo\s.+One foo only/);
       });
