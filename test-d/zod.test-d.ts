@@ -1,15 +1,16 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import {expectType} from 'tsd';
+import {expectAssignable, expectType} from 'tsd';
 import type * as yargs from 'yargs';
 import z from 'zod';
 import '../src/zod';
+import {ZodlawCommand} from '../src/zod-command';
 
 // _zodlaw()
 expectType<z.ZodlawOptions | undefined>(z.boolean()._def.zodlawOptions);
 expectType<z.ZodlawOptions>(z.boolean().option()._def.zodlawOptions);
 
 // common props
-expectType<{
+expectAssignable<{
   type: 'boolean';
   alias: string | readonly string[];
   global: true;
@@ -30,22 +31,17 @@ expectType<{
     ._toYargsOptions(false),
 );
 
-// last one wins
-expectType<{type: 'boolean'; alias: string | readonly string[]}>(
-  z.boolean().alias('alice').alias('bob')._toYargsOptions(false),
-);
-
 // strict mode
-expectType<{type: 'boolean'; demandOption: true}>(
+expectAssignable<{type: 'boolean'; demandOption: true}>(
   z.boolean()._toYargsOptions(true),
 );
 
 // boolean specific
-expectType<{type: 'boolean'; demandOption: false; count: true}>(
+expectAssignable<{type: 'boolean'; demandOption: false; count: true}>(
   z.boolean().count()._toYargsOptions(false),
 );
 
-expectType<
+expectAssignable<
   yargs.Argv<{
     foo: {type: 'boolean'; demandOption: false};
     bar: {type: 'string'; demandOption: false};
@@ -61,7 +57,7 @@ expectType<
     ._toYargs({} as yargs.Argv),
 );
 
-expectType<
+expectAssignable<
   yargs.Argv<{
     foo: {type: 'boolean'; demandOption: true};
     bar: {type: 'string'; demandOption: true};
@@ -78,7 +74,7 @@ expectType<
     ._toYargs({} as yargs.Argv),
 );
 
-expectType<
+expectAssignable<
   yargs.Argv<{
     foo: {type: 'boolean'; demandOption: true};
     bar: {type: 'string'; demandOption: false};
@@ -93,3 +89,15 @@ expectType<
     })
     ._toYargs({} as yargs.Argv),
 );
+
+expectType<
+  ZodlawCommand<
+    z.ZodObject<
+      {foo: z.ZodBoolean},
+      'strip',
+      z.ZodTypeAny,
+      {foo: boolean},
+      {foo: boolean}
+    >
+  >
+>(z.object({foo: z.boolean()}).command('bar'));

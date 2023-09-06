@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": ["node", "mocha"],
     "noEmit": true,
-    "composite": true
+    "composite": true,
+    "skipLibCheck": false
   },
   "include": ["."],
   "references": [
