@@ -1,7 +1,7 @@
 import unexpected from 'unexpected';
 import yargs from 'yargs';
 import zod from 'zod';
-import {register} from '../../src/zodlaw';
+import {register} from '../../src/zod';
 
 const expect = unexpected.clone();
 const z = register(zod);

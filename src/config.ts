@@ -360,6 +360,8 @@ export interface ConfigOptsSync<
    *
    * Keys are file extensions, values are functions which receive a filepath and
    * return an object.
+   *
+   * **Warning**: There's no way to guarantee the the loader is actually synchronous until we run it.
    */
   loaders?: Record<string, (filepath: string) => unknown>;
 }

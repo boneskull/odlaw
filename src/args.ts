@@ -1,10 +1,9 @@
-import {hideBin} from 'yargs/helpers';
-import yargs from 'yargs/yargs';
+import {Argv} from 'yargs';
 import z from 'zod';
 
-export function parseSync<T extends z.ZodTypeAny>(
+export function configureYargs<T extends z.AnyZodObject, U>(
+  yargs: Argv<U>,
   schema: T,
-  argv: string[] = hideBin(process.argv),
 ) {
-  return schema._toYargs(yargs(argv)).parseSync();
+  return schema._toYargs(yargs);
 }
