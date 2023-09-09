@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 import {SetRequired} from 'type-fest';
-import type * as yargs from 'yargs';
+import type * as y from 'yargs';
 import z from 'zod';
 import {YargsifyOdOptions} from './option';
 
@@ -22,9 +22,7 @@ export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
 export type ActuallyAnyZodObject = z.ZodObject<any, any, any, any, any>;
 
 export type OdCommandHandler<S extends z.ZodRawShape> = (
-  args: yargs.ArgumentsCamelCase<
-    yargs.InferredOptionTypes<ShapeToOdOptions<S>>
-  >,
+  args: y.ArgumentsCamelCase<y.InferredOptionTypes<ShapeToOdOptions<S>>>,
 ) => void | Promise<void>;
 
 export interface OdCommandTypeDef<T extends ActuallyAnyZodObject>
@@ -34,7 +32,7 @@ export interface OdCommandTypeDef<T extends ActuallyAnyZodObject>
   /**
    * @todo existentialize
    */
-  middlewares?: yargs.MiddlewareFunction<ShapeToOdOptions<T['shape']>>[];
+  middlewares?: y.MiddlewareFunction<ShapeToOdOptions<T['shape']>>[];
   deprecated?: boolean | string;
 
   typeName: 'OdCommand';
@@ -103,7 +101,7 @@ export class OdCommand<T extends ActuallyAnyZodObject> extends z.ZodType<
 
   static create = createOdCommand;
 
-  _toYargsCommand<Y>(argv: yargs.Argv<Y>): yargs.Argv<Y> {
+  _toYargsCommand<Y>(argv: y.Argv<Y>): y.Argv<Y> {
     const {command, handler, middlewares, deprecated, description, innerType} =
       this._def;
     const options = innerType._toYargsOptionsRecord();

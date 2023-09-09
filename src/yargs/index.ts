@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import type * as y from 'yargs';
-import type {Argv} from 'yargs';
 import {hideBin} from 'yargs/helpers';
 import yargs from 'yargs/yargs';
 import z from 'zod';
@@ -13,7 +12,7 @@ import {
 
 export interface BaseOdlawOptions<Y = {}> {
   scriptName?: string;
-  argv?: Argv<Y>;
+  argv?: y.Argv<Y>;
   args?: string[];
 }
 
@@ -39,7 +38,7 @@ export interface ConfigureYargsOptions {
  * @returns Yargs instance configured with Zod schema and optionally `scriptName`
  */
 export function configureYargs<T extends z.AnyZodObject, U>(
-  argv: Argv<U>,
+  argv: y.Argv<U>,
   schema: T,
   opts: ConfigureYargsOptions = {},
 ) {
@@ -53,7 +52,7 @@ export function configureYargs<T extends z.AnyZodObject, U>(
   return argv.options(schema._toYargsOptionsRecord());
 }
 
-function getScriptNameFromYargs<Y = {}>(argv?: Argv<Y>): string | undefined {
+function getScriptNameFromYargs<Y = {}>(argv?: y.Argv<Y>): string | undefined {
   if (argv && Reflect.get(argv, 'customScriptName')) {
     const scriptName = Reflect.get(argv, '$0') as string;
     if (scriptName) {
@@ -88,7 +87,7 @@ function parseOdlawParams<
   }
 
   const args = opts.args ?? hideBin(process.argv);
-  const argv = opts.argv ?? (yargs() as Argv<Y>);
+  const argv = opts.argv ?? (yargs() as y.Argv<Y>);
 
   return {scriptName, schema, opts, argv, args};
 }
@@ -98,11 +97,13 @@ export async function odlaw<Schema extends z.AnyZodObject, Y = {}>(
   schemaOrOpts?: Schema | OdlawOptions<Schema, Y>,
   options?: OdlawOptions<Schema, Y>,
 ) {
-  const {scriptName, schema, opts, argv, args} = parseOdlawParams(
-    scriptNameOrSchema,
-    schemaOrOpts,
-    options,
-  );
+  const {
+    scriptName,
+    schema,
+    opts,
+    argv,
+    args: rawArgs,
+  } = parseOdlawParams(scriptNameOrSchema, schemaOrOpts, options);
 
   const argvWithSchema = configureYargs(argv, schema, {scriptName});
   const configResult = await getConfig(scriptName, schema, opts?.configOpts);
@@ -110,7 +111,7 @@ export async function odlaw<Schema extends z.AnyZodObject, Y = {}>(
     ? argvWithSchema.config(configResult.config)
     : argvWithSchema;
 
-  return argvWithConfig.parseAsync(args);
+  return argvWithConfig.parseAsync(rawArgs);
 }
 export type ParsedArgs<T> = {
   [key in keyof y.Arguments<T> as
@@ -122,11 +123,13 @@ export function odlawSync<Schema extends z.AnyZodObject, Y = {}>(
   schemaOrOpts?: Schema | OdlawSyncOptions<Schema, Y>,
   options?: OdlawSyncOptions<Schema, Y>,
 ) {
-  const {scriptName, schema, opts, argv, args} = parseOdlawParams(
-    scriptNameOrSchema,
-    schemaOrOpts,
-    options,
-  );
+  const {
+    scriptName,
+    schema,
+    opts,
+    argv,
+    args: rawArgs,
+  } = parseOdlawParams(scriptNameOrSchema, schemaOrOpts, options);
 
   const argvWithSchema = configureYargs(argv, schema, {scriptName});
   const configResult = getConfigSync(scriptName, schema, opts?.configOpts);
@@ -135,6 +138,8 @@ export function odlawSync<Schema extends z.AnyZodObject, Y = {}>(
     : argvWithSchema;
 
   return argvWithConfig
-    .middleware((args) => schema.parse(args))
-    .parseSync(args);
+    .middleware((args) => {
+      Object.assign(args, schema.passthrough().parse(args));
+    }, true)
+    .parseSync(rawArgs);
 }

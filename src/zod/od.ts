@@ -1,11 +1,11 @@
 import z from 'zod';
-import {DynamicOdOptions, OdOptions} from './option';
+import {DynamicOdOptions} from './option';
 export interface OdTypeDef<
   T extends z.ZodTypeAny,
   ZO extends DynamicOdOptions = DynamicOdOptions,
 > extends z.ZodTypeDef {
   innerType: T;
-  odOptions: OdOptions<T, ZO>;
+  odOptions: ZO;
 }
 
 /**
@@ -17,7 +17,7 @@ export interface OdTypeDef<
 export class OdType<
   T extends z.ZodTypeAny,
   ZO extends DynamicOdOptions = DynamicOdOptions,
-> extends z.ZodType<T['_output'], T['_def'] & OdTypeDef<T, ZO>, T['_input']> {
+> extends z.ZodType<T['_output'], OdTypeDef<T, ZO>, T['_input']> {
   /**
    * @internal
    */
@@ -29,5 +29,16 @@ export class OdType<
    */
   get _odInnerType(): T {
     return this._def.innerType;
+  }
+
+  _cloneWith<ZO extends DynamicOdOptions>(odOptions?: ZO) {
+    return new OdType({
+      innerType: this._odInnerType,
+      odOptions: {...this._def.odOptions, ...odOptions},
+    });
+  }
+
+  override get description() {
+    return this._odInnerType.description ?? this._def.odOptions.describe;
   }
 }

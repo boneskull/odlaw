@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import {expectType} from 'tsd';
+import {expectType, printType} from 'tsd';
 import {Argv, InferredOptionTypes} from 'yargs';
 import z from 'zod';
 import {configureYargs, odlawSync} from '../../src/yargs';
@@ -11,6 +11,8 @@ expectType<
       InferredOptionTypes<{foo: {type: 'boolean'; demandOption: false}}>
   >
 >(configureYargs({} as Argv, z.object({foo: z.boolean()})));
+
+printType(odlawSync('butts', z.object({foo: z.boolean()}), {args: ['--foo']}));
 
 expectType<{[x: string]: unknown; foo?: boolean; _: (string | number)[]}>(
   odlawSync('butts', z.object({foo: z.boolean()}), {args: ['--foo']}),
