@@ -48,7 +48,7 @@ describe('config', function () {
         it('should load and validate a config file', async function () {
           await expect(
             loadConfig('good', filepath, schema, {
-              pre: async (result) => {
+              prepare: async (result) => {
                 return result === null
                   ? null
                   : {
@@ -69,7 +69,7 @@ describe('config', function () {
           it('should reject', async function () {
             await expect(
               loadConfig('good', filepath, schema, {
-                pre: async (result) => {
+                prepare: async (result) => {
                   return result === null
                     ? result
                     : {
@@ -90,7 +90,7 @@ describe('config', function () {
               await expect(
                 loadConfig('good', filepath, schema, {
                   safe: true,
-                  pre: (result) => {
+                  prepare: (result) => {
                     return result === null
                       ? null
                       : {
@@ -136,7 +136,7 @@ describe('config', function () {
         it('should load and validate a config file', async function () {
           await expect(
             loadConfig('good', filepath, schema, {
-              pre: async (result) => {
+              prepare: async (result) => {
                 return result === null
                   ? null
                   : {
@@ -175,7 +175,7 @@ describe('config', function () {
         it('should load and validate a config file', function () {
           expect(
             loadConfigSync('good', filepath, schema, {
-              pre: (result) => {
+              prepare: (result) => {
                 return result === null
                   ? null
                   : {
@@ -197,7 +197,7 @@ describe('config', function () {
             expect(
               () =>
                 loadConfigSync('good', filepath, schema, {
-                  pre: (result) => {
+                  prepare: (result) => {
                     return result === null
                       ? null
                       : {
@@ -219,7 +219,7 @@ describe('config', function () {
               expect(
                 loadConfigSync('good', filepath, schema, {
                   safe: true,
-                  pre: (result) => {
+                  prepare: (result) => {
                     return result === null
                       ? null
                       : {
@@ -244,7 +244,7 @@ describe('config', function () {
               () =>
                 loadConfigSync('good', filepath, schema, {
                   // @ts-expect-error wrong type
-                  pre: async (result) => {
+                  prepare: async (result) => {
                     return result === null
                       ? null
                       : {
@@ -313,7 +313,7 @@ describe('config', function () {
         it('should load and validate a config file', function () {
           expect(
             loadConfigSync('good', filepath, schema, {
-              pre: (result) => {
+              prepare: (result) => {
                 return result === null
                   ? null
                   : {

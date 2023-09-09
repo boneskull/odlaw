@@ -1,7 +1,7 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type * as yargs from 'yargs';
-import z, {ZodObjectDef} from 'zod';
+import z from 'zod';
+import {ExpandDeep} from '../util';
 import {
   OdCommand,
   OdCommandHandler,
@@ -71,15 +71,11 @@ declare module 'zod' {
      */
     _toYargsOptions<Strict extends boolean>(
       strict: Strict,
-    ): YargsifyOdOptions<this, {demandOption: Strict}>;
+    ): ExpandDeep<YargsifyOdOptions<this, {demandOption: Strict}>>;
 
-    _toYargsOptionsRecord(): ZodObjectToYargsOptionsRecord<this>;
-
-    _toYargs<Y>(
-      argv: yargs.Argv<Y>,
-    ): this['_def'] extends ZodObjectDef<any>
-      ? yargs.Argv<Y & ZodObjectToYargsOptionsRecord<this>>
-      : yargs.Argv<Y>;
+    _toYargsOptionsRecord(): this extends z.AnyZodObject
+      ? ExpandDeep<ZodObjectToYargsOptionsRecord<this>>
+      : never;
   }
 
   interface ZodObject<

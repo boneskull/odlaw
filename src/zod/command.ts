@@ -11,13 +11,13 @@ export type ShapeToOdOptions<
   [K in keyof S]: YargsifyOdOptions<S[K], {demandOption: Strict}>;
 };
 
-export type ZodObjectToYargsOptionsRecord<T extends z.ZodTypeAny> =
-  T extends z.AnyZodObject
-    ? ShapeToOdOptions<
-        T['shape'],
-        T['_def']['unknownKeys'] extends 'strict' ? true : false
-      >
-    : Record<string, yargs.Options>;
+export type Expand<T> = T extends infer U ? {[K in keyof U]: U[K]} : never;
+
+export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
+  ShapeToOdOptions<
+    T['shape'],
+    T['_def']['unknownKeys'] extends 'strict' ? true : false
+  >;
 
 export type ActuallyAnyZodObject = z.ZodObject<any, any, any, any, any>;
 

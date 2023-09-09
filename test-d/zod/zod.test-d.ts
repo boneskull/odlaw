@@ -1,22 +1,16 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import {expectAssignable, expectType} from 'tsd';
+import {expectType} from 'tsd';
 import z from 'zod';
-import {OdCommand, OdType, YargsType} from '../src/zod';
-import '../src/zod/augment';
+import {OdCommand, OdType, YargsType} from '../../src/zod';
+import '../../src/zod/augment';
 
 expectType<YargsType<boolean>>(z.boolean()._yargsType);
+
 expectType<OdType<z.ZodBoolean>>(z.boolean().option());
 expectType<OdType<z.ZodBoolean, {count: true}>>(z.boolean().count());
-expectAssignable<{type: 'boolean'; demandOption: false}>(
+expectType<{type: 'boolean'; demandOption: false}>(
   z.boolean()._toYargsOptions(false),
 );
-
-// type OdOptions<
-//     T extends z.ZodTypeAny,
-//     ZO extends DynamicOdOptions = DynamicOdOptions,
-//   > = T['_input'] extends OdInputType
-//     ? SimpleMerge<T['_odOptions'], Omit<ZO, 'type'>>
-//     : T['_odOptions'];
 
 // common props
 expectType<OdType<z.ZodBoolean, {alias: ['alice', 'bob']}>>(
@@ -24,13 +18,13 @@ expectType<OdType<z.ZodBoolean, {alias: ['alice', 'bob']}>>(
 );
 
 expectType<z.ZodDefault<z.ZodString>>(z.string().default('foo'));
-expectAssignable<{type: 'string'; demandOption: false}>(
+expectType<{type: 'string'; demandOption: false}>(
   z.string().default('foo')._toYargsOptions(false),
 );
 
-expectAssignable<{
+expectType<{
   type: 'boolean';
-  alias: string | readonly string[];
+  alias: string[];
   demandOption: false;
 }>(z.boolean().alias(['alice', 'bob'])._toYargsOptions(false));
 
@@ -41,12 +35,12 @@ expectType<OdType<z.ZodBoolean, {count: true; alias: 'bob'}>>(
 );
 
 // strict mode
-expectAssignable<{type: 'boolean'; demandOption: true}>(
+expectType<{type: 'boolean'; demandOption: true}>(
   z.boolean()._toYargsOptions(true),
 );
 
 // boolean specific
-expectAssignable<{type: 'boolean'; demandOption: false; count: true}>(
+expectType<{type: 'boolean'; demandOption: false; count: true}>(
   z.boolean().count()._toYargsOptions(false),
 );
 

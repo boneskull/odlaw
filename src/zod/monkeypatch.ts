@@ -2,7 +2,7 @@
 /* eslint-disable no-use-before-define */
 import type * as yargs from 'yargs';
 import {z} from 'zod';
-import {DynamicOdOptions, YargsifyOdOptions} from './option';
+import {DynamicOdOptions} from './option';
 export const kOd: unique symbol = Symbol('kOd');
 
 /**
@@ -78,47 +78,14 @@ export function register(zod: typeof z) {
     },
 
     _toYargsOptionsRecord() {
-      if (!('shape' in this)) {
+      if (!(this instanceof z.ZodObject)) {
         throw new TypeError('Expected ZodObject');
       }
       const record: Record<string, yargs.Options> = {};
       for (const key of Object.keys(this._def.shape)) {
-        record[key] = (this._def.shape[key] as z.ZodTypeAny)._toYargsOptions(
-          false,
-        );
+        record[key] = this.shape[key]._toYargsOptions(false);
       }
       return record;
-    },
-
-    _toYargs<Y>(argv: yargs.Argv<Y>) {
-      if (!(this instanceof z.ZodObject)) {
-        throw new TypeError('Expected ZodObject');
-      }
-
-      // /**
-      //  * Any `OdOptions` created via this `ZodObject` itself
-      //  */
-      // const zlOptionsRecord = this._def.odOptionsRecord;
-
-      const strict =
-        'unknownKeys' in this._def && this._def.unknownKeys === 'strict';
-
-      const yOpts = Object.entries(this.shape).reduce(
-        (zlOptionsRecord, [key, value]) => {
-          zlOptionsRecord[key] = (value as z.ZodTypeAny)._toYargsOptions(
-            strict,
-          );
-          return zlOptionsRecord;
-        },
-        {} as {
-          [K in keyof typeof this.shape]: YargsifyOdOptions<
-            (typeof this.shape)[K],
-            {demandOption: typeof strict}
-          >;
-        },
-      );
-
-      return argv.options(yOpts);
     },
   };
 

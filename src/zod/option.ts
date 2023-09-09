@@ -2,6 +2,7 @@
 import {SimpleMerge} from 'type-fest/source/merge';
 import type * as yargs from 'yargs';
 import z from 'zod';
+import {ExpandDeep} from '../util';
 import {OdType} from './od';
 
 export type OdStringType =
@@ -48,7 +49,6 @@ export type DynamicOdOptions = Pick<
   | 'nargs'
   | 'normalize'
 >;
-
 export type MergeOdOpts<
   ZO extends OdOptions<any>,
   DZO extends DynamicOdOptions,
@@ -76,6 +76,8 @@ export type OdOptionsType<
 export type YargsifyOdOptions<
   T extends z.ZodTypeAny,
   ZO extends DynamicOdOptions = object,
-> = T extends OdType<any>
-  ? T['_yargsType'] & T['_def']['odOptions'] & ZO
-  : T['_yargsType'] & ZO;
+> = ExpandDeep<
+  T extends OdType<any>
+    ? T['_yargsType'] & T['_def']['odOptions'] & ZO
+    : T['_yargsType'] & ZO
+>;
