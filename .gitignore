@@ -65,3 +65,4 @@ types
 .vscode/settings.json
 dist
 *.tsbuildinfo
+docs

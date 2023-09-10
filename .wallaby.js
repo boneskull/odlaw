@@ -8,11 +8,7 @@ module.exports = () => {
         env: 'DEBUG=odlaw*',
       },
     },
-    files: [
-      './src/**/*.ts',
-      'package.json',
-      './test/**/fixture/**/.?*.json'
-    ],
+    files: ['./src/**/*.ts', 'package.json', './test/**/fixture/**/.?*.json'],
     testFramework: 'mocha',
     tests: ['./test/**/*.spec.ts'],
     runMode: 'onsave',
