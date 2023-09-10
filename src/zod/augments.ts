@@ -8,21 +8,17 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type {Exact} from 'type-fest';
-import type * as y from 'yargs';
 import type z from 'zod';
 import type {ExpandDeep} from '../util';
-import type {
-  OdCommand,
-  ShapeToOdOptions,
-  ZodObjectToYargsOptionsRecord,
-} from './command';
+import type {OdCommand} from './command';
 import type {
   DynamicOdOptions,
   OdOptionsType,
   YargsType,
   YargsifyOdOptions,
+  ZodObjectToYargsOptionsRecord,
 } from './option';
-import type {kOd} from './zodtype';
+import type {kOd} from './register';
 
 declare module 'zod' {
   /**
@@ -161,11 +157,7 @@ declare module 'zod' {
     command(
       command: string | readonly string[],
       description: string,
-    ): OdCommand<T, UnknownKeys, Catchall, Output, Input>;
-
-    middlewares<M extends y.MiddlewareFunction<ShapeToOdOptions<T>>[]>(
-      middlewares: M,
-    ): OdCommand<T, UnknownKeys, Catchall, Output, Input, {middlewares: M}>;
+    ): OdCommand<this, {command: typeof command}>;
   }
 
   const command: typeof OdCommand.create;

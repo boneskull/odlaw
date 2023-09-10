@@ -1,5 +1,5 @@
 import zod from 'zod';
-import {register} from './zod/zodtype';
+import {register} from './zod/register';
 
 export const z = register(zod);
 

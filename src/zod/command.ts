@@ -5,44 +5,36 @@
  */
 
 /* eslint-disable camelcase */
-import {SetOptional, SetRequired} from 'type-fest';
+import {SetRequired} from 'type-fest';
+import {SimpleMerge} from 'type-fest/source/merge';
 import type * as y from 'yargs';
 import z from 'zod';
-import {YargsifyOdOptions} from './option';
-
-export type ShapeToOdOptions<
-  S extends z.ZodRawShape,
-  Strict extends boolean = false,
-> = {
-  [K in keyof S]: YargsifyOdOptions<S[K], {demandOption: Strict}>;
-};
-
-export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
-  ShapeToOdOptions<
-    T['shape'],
-    T['_def']['unknownKeys'] extends 'strict' ? true : false
-  >;
+import {ShapeToOdOptions} from './option';
 
 export type ActuallyAnyZodObject = z.ZodObject<any, any, any, any, any>;
+
+export type OdMiddleware<T extends ActuallyAnyZodObject> = y.MiddlewareFunction<
+  ShapeToOdOptions<T['shape']>
+>;
 
 /**
  * Equivalent to a `yargs` command handler function
  *
  */
-export type OdCommandHandler<S extends z.ZodRawShape> = (
-  args: y.ArgumentsCamelCase<y.InferredOptionTypes<ShapeToOdOptions<S>>>,
+export type OdCommandHandler<Shape extends z.ZodRawShape> = (
+  args: y.ArgumentsCamelCase<y.InferredOptionTypes<ShapeToOdOptions<Shape>>>,
 ) => void | Promise<void>;
 
-export interface DynamicOdCommandOptions<T extends z.ZodRawShape> {
-  handler?: OdCommandHandler<T>;
+export interface DynamicOdCommandOptions<T extends ActuallyAnyZodObject> {
+  handler?: OdCommandHandler<T['shape']>;
   /**
    * @todo existentialize
    */
-  middlewares?: y.MiddlewareFunction<ShapeToOdOptions<T>>[];
+  middlewares?: OdMiddleware<T>[];
   deprecated?: boolean | string;
 }
 
-export interface OdCommandOptions<T extends z.ZodRawShape>
+export interface OdCommandOptions<T extends ActuallyAnyZodObject>
   extends DynamicOdCommandOptions<T> {
   command: string | readonly string[];
 }
@@ -51,102 +43,69 @@ export interface OdCommandOptions<T extends z.ZodRawShape>
  * Properties of a {@linkcode OdCommand} instance.
  */
 export interface OdCommandTypeDef<
-  T extends z.ZodRawShape = z.ZodRawShape,
-  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
-  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+  T extends ActuallyAnyZodObject,
   OCO extends OdCommandOptions<T> = OdCommandOptions<T>,
-> extends z.ZodObjectDef<T, UnknownKeys, Catchall> {
+> extends z.ZodTypeDef {
   odCommandOptions: OCO;
   innerType: T;
   description: string;
 }
 
-export type OdCommandRawCreateParams<T extends z.ZodRawShape> = SetOptional<
-  OdCommandOptions<T>,
-  'command'
-> &
-  SetRequired<NonNullable<z.RawCreateParams>, 'description'>;
+export type OdCommandRawCreateParams = SetRequired<
+  NonNullable<z.RawCreateParams>,
+  'description'
+>;
 
 function createOdCommand<
-  T extends z.ZodRawShape,
-  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
-  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  command: string | readonly string[],
-  params: OdCommandRawCreateParams<T> | string,
-  shape?: T,
-): OdCommand<T>;
-function createOdCommand<
-  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
-  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  command: string | readonly string[],
-  params: OdCommandRawCreateParams<{}> | string,
-): OdCommand<{}>;
-function createOdCommand<
-  T extends z.ZodRawShape,
-  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
-  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  command: string | readonly string[],
-  params: OdCommandRawCreateParams<T | {}> | string,
-  shape?: T,
-) {
-  let description: string;
-  let errorMap: z.ZodErrorMap | undefined;
-  let invalid_type_error: string | undefined;
-  let required_error: string | undefined;
-  let odCommandOptions: SetOptional<OdCommandOptions<T>, 'command'> | undefined;
-  shape ??= {};
+  T extends ActuallyAnyZodObject,
+  OCO extends OdCommandOptions<T>,
+>(odCommandOptions: OCO, params: OdCommandRawCreateParams, innerType?: T) {
+  innerType ??= z.object({}) as T;
 
-  if (typeof params === 'string') {
-    description = params;
-  } else {
-    ({
-      errorMap,
-      invalid_type_error,
-      required_error,
-      description,
-      ...odCommandOptions
-    } = params);
-  }
-
-  const def: OdCommandTypeDef<T, UnknownKeys, Catchall> = {
-    odCommandOptions: {...odCommandOptions, command},
-    ...processCreateParams({
-      errorMap,
-      invalid_type_error,
-      required_error,
-      description,
-    }),
+  const def = {
+    innerType,
+    odCommandOptions,
+    ...processCreateParams(params),
   };
 
-  return new OdCommand(shape, def);
+  return new OdCommand(def);
 }
 
-// export type ExtendOdCommand<
-//   T extends ActuallyAnyZodObject,
-//   DOCO extends DynamicOdCommandOptions<T>,
-// > = T extends OdCommand<any>
-//   ? OdCommand<
-//       T['_odInnerType'],
-//       T['_def']['odCommandOptions'] & Omit<DOCO, 'command'>
-//     >
-//   : OdCommand<T, DOCO extends {command: string} ? DOCO : never>;
+export type ExtendOdCommand<
+  T extends ActuallyAnyZodObject,
+  DOCO extends DynamicOdCommandOptions<T>,
+> = T extends OdCommand<any>
+  ? OdCommand<
+      T['_odInnerType'],
+      T['_def']['odCommandOptions'] & Omit<DOCO, 'command'>
+    >
+  : OdCommand<T, DOCO extends {command: string} ? DOCO : never>;
 
 export class OdCommand<
-  T extends z.ZodRawShape,
-  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
-  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
-  Output = z.objectOutputType<T, Catchall, UnknownKeys>,
-  Input = z.objectInputType<T, Catchall, UnknownKeys>,
+  T extends ActuallyAnyZodObject,
   OCO extends OdCommandOptions<T> = OdCommandOptions<T>,
-> extends z.ZodObject<
-  Output,
-  OdCommandTypeDef<T, UnknownKeys, Catchall, OCO>,
-  Input
-> {
+> extends z.ZodType<T['_output'], OdCommandTypeDef<T, OCO>, T['_input']> {
   static create = createOdCommand;
+
+  get _odInnerType(): T {
+    return this._def.innerType;
+  }
+
+  _parse(input: z.ParseInput): z.ParseReturnType<T['_output']> {
+    return this._def.innerType._parse(input);
+  }
+
+  middlewares<M extends OdMiddleware<T>[]>(
+    middlewares: M,
+  ): OdCommand<T, SimpleMerge<OCO, {middlewares: M}>> {
+    return new OdCommand({
+      ...this._def,
+      odCommandOptions: {
+        ...this._def.odCommandOptions,
+        middlewares,
+      },
+    });
+  }
 
   /**
    *

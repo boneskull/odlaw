@@ -19,7 +19,11 @@ describe('od', function () {
 
   describe('zod.command()', function () {
     it('should allow a command to be created', function () {
-      expect(z.command('foo', 'desc'), 'to be a', OdCommand);
+      expect(
+        z.command({command: 'foo'}, {description: 'bar'}),
+        'to be a',
+        OdCommand,
+      );
     });
   });
 
@@ -28,15 +32,17 @@ describe('od', function () {
       describe('_toYargsCommand()', function () {
         describe('when the command contains no options', function () {
           it('should return a Yargs instance configured with the command', function () {
-            const command = z.command('foo', {
-              description: 'bar',
-              middlewares: [
-                (argv) => {
-                  // @ts-expect-error no "butts" allowed
-                  argv.butts = 1;
-                },
-              ],
-            });
+            const command = z.command(
+              {
+                command: 'foo',
+                middlewares: [
+                  (argv) => {
+                    argv.butts = 1;
+                  },
+                ],
+              },
+              {description: 'bar'},
+            );
             expect(
               command._toYargsCommand(yargs(['foo'])).parseSync(),
               'to satisfy',

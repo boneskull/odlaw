@@ -11,7 +11,7 @@
 import type * as y from 'yargs';
 import z from 'zod';
 import {monkeypatch, unmonkeypatch} from '../monkey';
-import {OdCommand} from './command';
+import {ActuallyAnyZodObject, OdCommand} from './command';
 import {OdType} from './od';
 import {DynamicOdOptions} from './option';
 export const kOd: unique symbol = Symbol('kOd');
@@ -193,6 +193,16 @@ export function register(zod: typeof z) {
 
   monkeypatch(kOd, zod, {command: OdCommand.create});
 
+  monkeypatch(kOd, zod.ZodObject.prototype, {
+    command(
+      this: ActuallyAnyZodObject,
+      command: string | readonly string[],
+      description: string,
+    ) {
+      return OdCommand.create({command}, {description}, this);
+    },
+  });
+
   return zod;
 }
 
@@ -217,6 +227,8 @@ export function unregister(zod: typeof z) {
   }
 
   unmonkeypatch(kOd, zod);
+
+  unmonkeypatch(kOd, zod.ZodObject.prototype);
 
   return zod;
 }
