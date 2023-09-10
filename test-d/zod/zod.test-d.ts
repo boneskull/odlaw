@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-types */
+import '../../src/zod/augments';
+
 import {expectType} from 'tsd';
 import z from 'zod';
-import {OdCommand, OdType, YargsType} from '../../src/zod';
-import '../../src/zod/augment';
+import {OdType, YargsType} from '../../src/zod';
 
 expectType<YargsType<boolean>>(z.boolean()._yargsType);
 
@@ -101,15 +102,3 @@ expectType<{type: 'boolean'; demandOption: false; count: true}>(
 //     })
 //     ._toYargs({} as yargs.Argv),
 // );
-
-expectType<
-  OdCommand<
-    z.ZodObject<
-      {foo: z.ZodBoolean},
-      'strip',
-      z.ZodTypeAny,
-      {foo: boolean},
-      {foo: boolean}
-    >
-  >
->(z.object({foo: z.boolean()}).command('bar'));

@@ -1,5 +1,11 @@
+/* eslint-disable @typescript-eslint/ban-types */
+/**
+ * Implementation for describing Yargs commands via Zod schemas.
+ * @packageDocumentation
+ */
+
 /* eslint-disable camelcase */
-import {SetRequired} from 'type-fest';
+import {SetOptional, SetRequired} from 'type-fest';
 import type * as y from 'yargs';
 import z from 'zod';
 import {YargsifyOdOptions} from './option';
@@ -11,8 +17,6 @@ export type ShapeToOdOptions<
   [K in keyof S]: YargsifyOdOptions<S[K], {demandOption: Strict}>;
 };
 
-export type Expand<T> = T extends infer U ? {[K in keyof U]: U[K]} : never;
-
 export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
   ShapeToOdOptions<
     T['shape'],
@@ -21,92 +25,143 @@ export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
 
 export type ActuallyAnyZodObject = z.ZodObject<any, any, any, any, any>;
 
+/**
+ * Equivalent to a `yargs` command handler function
+ *
+ */
 export type OdCommandHandler<S extends z.ZodRawShape> = (
   args: y.ArgumentsCamelCase<y.InferredOptionTypes<ShapeToOdOptions<S>>>,
 ) => void | Promise<void>;
 
-export interface OdCommandTypeDef<T extends ActuallyAnyZodObject>
-  extends z.ZodTypeDef {
-  command: string | readonly string[];
-  handler?: OdCommandHandler<T['shape']>;
+export interface DynamicOdCommandOptions<T extends z.ZodRawShape> {
+  handler?: OdCommandHandler<T>;
   /**
    * @todo existentialize
    */
-  middlewares?: y.MiddlewareFunction<ShapeToOdOptions<T['shape']>>[];
+  middlewares?: y.MiddlewareFunction<ShapeToOdOptions<T>>[];
   deprecated?: boolean | string;
+}
 
-  typeName: 'OdCommand';
+export interface OdCommandOptions<T extends z.ZodRawShape>
+  extends DynamicOdCommandOptions<T> {
+  command: string | readonly string[];
+}
+
+/**
+ * Properties of a {@linkcode OdCommand} instance.
+ */
+export interface OdCommandTypeDef<
+  T extends z.ZodRawShape = z.ZodRawShape,
+  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+  OCO extends OdCommandOptions<T> = OdCommandOptions<T>,
+> extends z.ZodObjectDef<T, UnknownKeys, Catchall> {
+  odCommandOptions: OCO;
   innerType: T;
   description: string;
 }
 
-export type OdCommandRawCreateParams = SetRequired<
-  NonNullable<z.RawCreateParams>,
-  'description'
->;
+export type OdCommandRawCreateParams<T extends z.ZodRawShape> = SetOptional<
+  OdCommandOptions<T>,
+  'command'
+> &
+  SetRequired<NonNullable<z.RawCreateParams>, 'description'>;
 
-function createOdCommand<T extends ActuallyAnyZodObject>(
-  innerType: T,
+function createOdCommand<
+  T extends z.ZodRawShape,
+  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+>(
   command: string | readonly string[],
-  params: OdCommandRawCreateParams | string,
+  params: OdCommandRawCreateParams<T> | string,
+  shape?: T,
 ): OdCommand<T>;
-function createOdCommand<T extends ActuallyAnyZodObject>(
+function createOdCommand<
+  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+>(
   command: string | readonly string[],
-  params: OdCommandRawCreateParams | string,
-): OdCommand<T>;
-function createOdCommand<T extends ActuallyAnyZodObject>(
-  innerTypeOrCommand: T | string | readonly string[],
-  commandOrParams: string | readonly string[] | OdCommandRawCreateParams,
-  params?: OdCommandRawCreateParams | string,
-): OdCommand<T> {
+  params: OdCommandRawCreateParams<{}> | string,
+): OdCommand<{}>;
+function createOdCommand<
+  T extends z.ZodRawShape,
+  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  command: string | readonly string[],
+  params: OdCommandRawCreateParams<T | {}> | string,
+  shape?: T,
+) {
   let description: string;
-  let command: string | readonly string[];
-  let innerType: T;
+  let errorMap: z.ZodErrorMap | undefined;
+  let invalid_type_error: string | undefined;
+  let required_error: string | undefined;
+  let odCommandOptions: SetOptional<OdCommandOptions<T>, 'command'> | undefined;
+  shape ??= {};
+
   if (typeof params === 'string') {
     description = params;
-    command = commandOrParams as string | readonly string[];
-    innerType = innerTypeOrCommand as T;
-  } else if (typeof params === 'object') {
-    description = params.description;
-    command = commandOrParams as string | readonly string[];
-    innerType = innerTypeOrCommand as T;
   } else {
-    if (innerTypeOrCommand instanceof z.ZodType) {
-      throw new TypeError('Expected description');
-    } else {
-      command = innerTypeOrCommand;
-      description = commandOrParams as string;
-      innerType = z.object({}) as any;
-    }
+    ({
+      errorMap,
+      invalid_type_error,
+      required_error,
+      description,
+      ...odCommandOptions
+    } = params);
   }
 
-  const def: OdCommandTypeDef<T> = {
-    innerType,
-    command,
-    typeName: 'OdCommand',
-    description,
+  const def: OdCommandTypeDef<T, UnknownKeys, Catchall> = {
+    odCommandOptions: {...odCommandOptions, command},
+    ...processCreateParams({
+      errorMap,
+      invalid_type_error,
+      required_error,
+      description,
+    }),
   };
 
-  return new OdCommand(def);
+  return new OdCommand(shape, def);
 }
 
-export class OdCommand<T extends ActuallyAnyZodObject> extends z.ZodType<
-  T['_output'],
-  OdCommandTypeDef<T>,
-  T['_input']
-> {
-  _parse(input: z.ParseInput): z.ParseReturnType<T['_output']> {
-    return this._def.innerType._parse(input);
-  }
+// export type ExtendOdCommand<
+//   T extends ActuallyAnyZodObject,
+//   DOCO extends DynamicOdCommandOptions<T>,
+// > = T extends OdCommand<any>
+//   ? OdCommand<
+//       T['_odInnerType'],
+//       T['_def']['odCommandOptions'] & Omit<DOCO, 'command'>
+//     >
+//   : OdCommand<T, DOCO extends {command: string} ? DOCO : never>;
 
+export class OdCommand<
+  T extends z.ZodRawShape,
+  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+  Output = z.objectOutputType<T, Catchall, UnknownKeys>,
+  Input = z.objectInputType<T, Catchall, UnknownKeys>,
+  OCO extends OdCommandOptions<T> = OdCommandOptions<T>,
+> extends z.ZodObject<
+  Output,
+  OdCommandTypeDef<T, UnknownKeys, Catchall, OCO>,
+  Input
+> {
   static create = createOdCommand;
 
+  /**
+   *
+   * @param argv Yargs instance
+   * @returns Yargs instance with a new command on it
+   * @internal
+   */
   _toYargsCommand<Y>(argv: y.Argv<Y>): y.Argv<Y> {
-    const {command, handler, middlewares, deprecated, description, innerType} =
-      this._def;
+    const {command, handler, middlewares, deprecated} =
+      this._def.odCommandOptions;
+    const description = this._def.description;
+    const innerType = this._def.innerType;
     const options = innerType._toYargsOptionsRecord();
 
-    const yargsCommand = argv.command<typeof options>(
+    const yargsCommand = argv.command(
       command,
       description,
       options,
@@ -118,23 +173,22 @@ export class OdCommand<T extends ActuallyAnyZodObject> extends z.ZodType<
   }
 }
 
-// function processCreateParams(
-//   params: z.RawCreateParams,
-// ): z.ProcessedCreateParams {
-//   if (!params) return {};
-//   const {errorMap, invalid_type_error, required_error, description} = params;
-//   if (errorMap && (invalid_type_error || required_error)) {
-//     throw new Error(
-//       `Can't use "invalid_type_error" or "required_error" in conjunction with custom error map.`,
-//     );
-//   }
-//   if (errorMap) return {errorMap, description};
-//   const customMap: z.ZodErrorMap = (iss, ctx) => {
-//     if (iss.code !== 'invalid_type') return {message: ctx.defaultError};
-//     if (typeof ctx.data === 'undefined') {
-//       return {message: required_error ?? ctx.defaultError};
-//     }
-//     return {message: invalid_type_error ?? ctx.defaultError};
-//   };
-//   return {errorMap: customMap, description};
-// }
+function processCreateParams(
+  params: SetRequired<NonNullable<z.RawCreateParams>, 'description'>,
+): SetRequired<z.ProcessedCreateParams, 'description'> {
+  const {errorMap, invalid_type_error, required_error, description} = params;
+  if (errorMap && (invalid_type_error || required_error)) {
+    throw new Error(
+      `Can't use "invalid_type_error" or "required_error" in conjunction with custom error map.`,
+    );
+  }
+  if (errorMap) return {errorMap, description};
+  const customMap: z.ZodErrorMap = (iss, ctx) => {
+    if (iss.code !== 'invalid_type') return {message: ctx.defaultError};
+    if (typeof ctx.data === 'undefined') {
+      return {message: required_error ?? ctx.defaultError};
+    }
+    return {message: invalid_type_error ?? ctx.defaultError};
+  };
+  return {errorMap: customMap, description};
+}

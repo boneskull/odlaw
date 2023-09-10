@@ -5,7 +5,7 @@ import {register, unregister} from '../../../src/zod';
 
 const expect = unexpected.clone();
 
-describe('zodlaw', function () {
+describe('od', function () {
   let z: typeof zod;
 
   beforeEach(function () {
@@ -26,7 +26,7 @@ describe('zodlaw', function () {
 
   describe('unsupported types', function () {
     it('should not have a _yargsType', function () {
-      expect(z.date()._yargsType, 'to be undefined');
+      expect(z.date()._yargsType, 'to be', undefined);
     });
   });
 
@@ -94,16 +94,38 @@ describe('zodlaw', function () {
   });
 
   describe('_toYargsOptionsRecord()', function () {
-    it('should not throw', function () {
-      expect(
-        () =>
-          z
-            .object({
-              foo: z.boolean(),
-            })
-            ._toYargsOptionsRecord(),
-        'not to throw',
-      );
+    describe('when called on a ZodObject', function () {
+      it('should not throw', function () {
+        expect(
+          () =>
+            z
+              .object({
+                foo: z.boolean(),
+              })
+              ._toYargsOptionsRecord(),
+          'not to throw',
+        );
+      });
+    });
+
+    describe('when called on a non-ZodObject ZodType', function () {
+      it('should throw', function () {
+        expect(
+          () => z.boolean()._toYargsOptionsRecord(),
+          'to throw a',
+          TypeError,
+        );
+      });
+    });
+
+    describe('when called on an OdType', function () {
+      it('should throw', function () {
+        expect(
+          () => z.boolean().defaultDescription('mooo')._toYargsOptionsRecord(),
+          'to throw a',
+          TypeError,
+        );
+      });
     });
   });
 });

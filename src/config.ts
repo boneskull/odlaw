@@ -65,7 +65,7 @@ export type PrepareTransformSync<Schema extends z.AnyZodObject> = (
  * Validation transform
  * @internal
  */
-type ValidatorTransform<Schema extends z.AnyZodObject> = (
+export type ValidatorTransform<Schema extends z.AnyZodObject> = (
   preResult: PreparedResult<Schema>,
 ) => Promise<ValidatedResult<Schema>>;
 

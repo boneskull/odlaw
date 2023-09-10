@@ -24,6 +24,7 @@ export class OdType<
   _parse(input: z.ParseInput): z.ParseReturnType<T['_output']> {
     return this._odInnerType.parse(input);
   }
+
   /**
    * @internal
    */
@@ -31,6 +32,9 @@ export class OdType<
     return this._def.innerType;
   }
 
+  /**
+   * @internal
+   */
   _cloneWith<ZO extends DynamicOdOptions>(odOptions?: ZO) {
     return new OdType({
       innerType: this._odInnerType,
@@ -38,6 +42,10 @@ export class OdType<
     });
   }
 
+  /**
+   * Returns the `description` property of the inner `ZodType` _or_ the
+   * `describe` property of the `OdOptions` (if set), preferring the former.
+   */
   override get description() {
     return this._odInnerType.description ?? this._def.odOptions.describe;
   }

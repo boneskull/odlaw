@@ -1,0 +1,7 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src/external.ts"],
+  "tsconfig": "./tsconfig-typedoc.json",
+  "excludeInternal": true,
+  "plugin": ["typedoc-plugin-zod"]
+}
