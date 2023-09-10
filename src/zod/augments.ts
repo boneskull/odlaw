@@ -141,7 +141,7 @@ declare module 'zod' {
      */
     _toYargsOptionsRecord(): this extends z.AnyZodObject
       ? ExpandDeep<ZodObjectToYargsOptionsRecord<this>>
-      : never;
+      : Record<string, any>;
   }
 
   /**
@@ -157,7 +157,10 @@ declare module 'zod' {
     command(
       command: string | readonly string[],
       description: string,
-    ): OdCommand<this, {command: typeof command}>;
+    ): OdCommand<
+      ZodObject<T, UnknownKeys, Catchall>,
+      {command: typeof command}
+    >;
   }
 
   const command: typeof OdCommand.create;

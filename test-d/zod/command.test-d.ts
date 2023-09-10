@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 import {expectAssignable, expectType} from 'tsd';
 import z from 'zod';
-import {ActuallyAnyZodObject, OdCommand, OdMiddleware} from '../../src/zod';
+import {OdCommand, OdMiddleware} from '../../src/zod';
 
 type someZodObject = z.ZodObject<
   {foo: z.ZodBoolean},
@@ -29,10 +29,10 @@ expectType<string>(
 
 expectAssignable<
   OdCommand<
-    ActuallyAnyZodObject,
+    z.AnyZodObject,
     {
       command: string | readonly string[];
-      middlewares: OdMiddleware<ActuallyAnyZodObject>[];
+      middlewares: OdMiddleware<z.AnyZodObject>[];
     }
   >
 >(
@@ -62,4 +62,28 @@ expectAssignable<
         argv.butts = 1;
       },
     ]),
+);
+
+expectAssignable<
+  OdCommand<
+    someZodObject,
+    {
+      command: string | readonly string[];
+      middlewares: OdMiddleware<someZodObject>[];
+    }
+  >
+>(
+  z
+    .object({
+      foo: z.boolean(),
+    })
+    .command('bar', 'baz')
+    .middlewares(
+      (argv) => {
+        argv.butts = 1;
+      },
+      (argv) => {
+        argv.headss = 1;
+      },
+    ),
 );

@@ -11,7 +11,7 @@
 import type * as y from 'yargs';
 import z from 'zod';
 import {monkeypatch, unmonkeypatch} from '../monkey';
-import {ActuallyAnyZodObject, OdCommand} from './command';
+import {OdCommand} from './command';
 import {OdType} from './od';
 import {DynamicOdOptions} from './option';
 export const kOd: unique symbol = Symbol('kOd');
@@ -195,7 +195,7 @@ export function register(zod: typeof z) {
 
   monkeypatch(kOd, zod.ZodObject.prototype, {
     command(
-      this: ActuallyAnyZodObject,
+      this: z.AnyZodObject,
       command: string | readonly string[],
       description: string,
     ) {
