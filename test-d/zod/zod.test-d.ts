@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 import '../../src/zod/augments';
 
 import {expectType} from 'tsd';

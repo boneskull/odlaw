@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
-
 // declare module 'yargs' {
 //   interface Argv<T = {}> {
 //     schema<Z extends z.AnyZodObject>(

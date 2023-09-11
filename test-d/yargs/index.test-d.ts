@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 import {expectType} from 'tsd';
 import {Argv, InferredOptionTypes} from 'yargs';
 import z from 'zod';

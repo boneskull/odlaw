@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /**
  * Implementation for describing Yargs commands via Zod schemas.
  * @packageDocumentation
@@ -54,50 +53,6 @@ export type OdCommandRawCreateParams = SetRequired<
   'description'
 >;
 
-function createOdCommand<
-  T extends z.AnyZodObject,
-  OCO extends OdCommandOptions<{
-    [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
-  }>,
->(
-  odCommandOptions: OCO,
-  params: OdCommandRawCreateParams,
-  innerType?: T,
-): OdCommand<
-  z.ZodObject<
-    {
-      [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
-    },
-    T['_def']['unknownKeys'],
-    T['_def']['catchall']
-  >,
-  OCO
-> {
-  innerType ??= z.object({}) as T;
-
-  const newShape = Object.fromEntries(
-    Object.entries(innerType.shape).map(([key, value]) => {
-      if (value instanceof z.ZodOptional) {
-        return [key, value];
-      }
-      return [key, (value as any).optional()];
-    }),
-  ) as {
-    [K in keyof T['shape']]: T['shape'][K] extends z.ZodOptional<any>
-      ? T['shape'][K]
-      : z.ZodOptional<T['shape'][K]>;
-  };
-
-  const partialInnerType = innerType.augment(newShape);
-  const def = {
-    innerType: partialInnerType,
-    odCommandOptions,
-    ...processCreateParams(params),
-  };
-
-  return new OdCommand(def) as any;
-}
-
 /**
  * Adapted from Zod sources
  */
@@ -142,7 +97,60 @@ export class OdCommand<
   T extends z.AnyZodObject,
   OCO extends OdCommandOptions<T['shape']> = OdCommandOptions<T['shape']>,
 > extends z.ZodType<T['_output'], OdCommandTypeDef<T, OCO>, T['_input']> {
-  public static create = createOdCommand;
+  public static create<OCO extends OdCommandOptions<{}>>(
+    odCommandOptions: OCO,
+    params: OdCommandRawCreateParams,
+  ): OdCommand<z.ZodObject<{}>, OCO>;
+  public static create<
+    OCO extends OdCommandOptions<{
+      [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
+    }>,
+    T extends z.AnyZodObject,
+  >(
+    odCommandOptions: OCO,
+    params: OdCommandRawCreateParams,
+    innerType?: T,
+  ): OdCommand<
+    z.ZodObject<
+      {
+        [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
+      },
+      T['_def']['unknownKeys'],
+      T['_def']['catchall']
+    >,
+    OCO
+  >;
+  public static create<
+    OCO extends OdCommandOptions<{
+      [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
+    }>,
+    T extends z.AnyZodObject,
+  >(odCommandOptions: OCO, params: OdCommandRawCreateParams, innerType?: T) {
+    // this avoids calling .optional() on a `z.ZodOptional` type
+    const newShape = Object.fromEntries(
+      Object.entries(innerType?.shape ?? {}).map(([key, value]) => {
+        if (value instanceof z.ZodOptional) {
+          return [key, value];
+        }
+        return [key, (value as any).optional()];
+      }),
+    ) as {
+      [K in keyof T['shape']]: T['shape'][K] extends z.ZodOptional<any>
+        ? T['shape'][K]
+        : z.ZodOptional<T['shape'][K]>;
+    };
+
+    const partialInnerType = innerType
+      ? innerType.augment(newShape)
+      : z.object(newShape);
+    const def = {
+      innerType: partialInnerType,
+      odCommandOptions,
+      ...processCreateParams(params),
+    };
+
+    return new OdCommand(def);
+  }
 
   /**
    * @internal

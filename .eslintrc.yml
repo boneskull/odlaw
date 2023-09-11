@@ -34,3 +34,8 @@ rules:
   'no-useless-constructor': 'off'
   'lines-between-class-members': 'off'
   'no-use-before-define': 'off'
+  '@typescript-eslint/ban-types':
+    - 'error'
+    - extendDefaults: true
+      types:
+        '{}': false

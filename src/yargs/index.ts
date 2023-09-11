@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 import type * as y from 'yargs';
 import {hideBin} from 'yargs/helpers';
 import yargs from 'yargs/yargs';

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 import {expectAssignable, expectType} from 'tsd';
 import z from 'zod';
 import {OdCommand, OdMiddleware} from '../../src/zod';
