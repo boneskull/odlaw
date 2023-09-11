@@ -1,6 +1,6 @@
 import './augments';
 
-export {OdCommand} from './command';
 export type * from './od';
-export type * from './option';
+export {OdCommand, OdMiddleware} from './od-command';
+export type * from './od-option';
 export {register, unregister} from './register';

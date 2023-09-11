@@ -8,8 +8,12 @@ import {SetRequired} from 'type-fest';
 import type * as y from 'yargs';
 import z from 'zod';
 import {OdType} from '..';
-import {ShapeToOdOptions} from './option';
+import {ShapeToOdOptions} from './od-option';
 
+/**
+ * Equivalent to a `yargs` middleware function based on the shape of a
+ * {@linkcode z.ZodObject} or {@linkcode OdCommand}
+ */
 export type OdMiddleware<T extends z.ZodRawShape> = y.MiddlewareFunction<
   ShapeToOdOptions<T>
 >;
@@ -22,18 +26,28 @@ export type OdCommandHandler<Shape extends z.ZodRawShape> = (
   args: y.ArgumentsCamelCase<y.InferredOptionTypes<ShapeToOdOptions<Shape>>>,
 ) => void | Promise<void>;
 
-export interface DynamicOdCommandOptions<T extends z.ZodRawShape> {
-  handler?: OdCommandHandler<T>;
+/**
+ * Options used when creating a yargs command from a {@linkcode OdCommand}
+ */
+export interface OdCommandOptions<T extends z.ZodRawShape> {
   /**
-   * @todo existentialize
+   * Name of comman or array of names (aliases)
+   */
+  command: string | readonly string[];
+  /**
+   * Handler for the command
+   */
+  handler?: OdCommandHandler<T>;
+
+  /**
+   * Middleware function(s) for the command
    */
   middlewares?: OdMiddleware<T>[];
-  deprecated?: boolean | string;
-}
 
-export interface OdCommandOptions<T extends z.ZodRawShape>
-  extends DynamicOdCommandOptions<T> {
-  command: string | readonly string[];
+  /**
+   * Whether the command is deprecated. If `string`, a message
+   */
+  deprecated?: boolean | string;
 }
 
 /**
@@ -48,13 +62,17 @@ export interface OdCommandTypeDef<
   description: string;
 }
 
+/**
+ * Like {@linkcode z.RawCreateParams}, but
+ * {@linkcode z.RawCreateParams.description} is required (and thus the object cannot be `undefined`).
+ */
 export type OdCommandRawCreateParams = SetRequired<
   NonNullable<z.RawCreateParams>,
   'description'
 >;
 
 /**
- * Adapted from Zod sources
+ * Adapted from Zod sources to include {@linkcode OdCommand} and {@linkcode OdType}.
  */
 export type DeepPartial<T extends z.ZodTypeAny> =
   T extends z.ZodObject<z.ZodRawShape>
@@ -90,13 +108,19 @@ export type DeepPartial<T extends z.ZodTypeAny> =
 /**
  * Represents a Yargs command; mimics the {@linkcode z.ZodObject} API.
  *
- * The property {@linkcode OdCommand._odInnerType} is a {@linkcode z.ZodObject},
- * but {@linkcode OdCommand} itself is not.
+ * Wraps a {@linkcode z.ZodObject}.
  */
 export class OdCommand<
   T extends z.AnyZodObject,
   OCO extends OdCommandOptions<T['shape']> = OdCommandOptions<T['shape']>,
 > extends z.ZodType<T['_output'], OdCommandTypeDef<T, OCO>, T['_input']> {
+  /**
+   * Creates a new {@linkcode OdCommand} instance, optionally from an existing {@linkcode z.ZodObject}.
+   *
+   * This is called by the consumer; the constructor is not.
+   *
+   * Aliased to {@linkcode z.command}.
+   */
   public static create<OCO extends OdCommandOptions<{}>>(
     odCommandOptions: OCO,
     params: OdCommandRawCreateParams,
@@ -160,12 +184,18 @@ export class OdCommand<
   }
 
   /**
+   * Delegates to the inner type's {@linkcode z.ZodObject._parse} method.
    * @internal
    */
   public override _parse(input: z.ParseInput): z.ParseReturnType<T['_output']> {
     return this._def.innerType._parse(input);
   }
 
+  /**
+   * Assigns Yargs middleware to the command
+   * @param middlewares One ore more Yargs middleware functions
+   * @category Yargs API
+   */
   public middlewares(
     middlewares: OdMiddleware<T['shape']>[],
   ): OdCommand<T, OCO & {middlewares: OdMiddleware<T['shape']>[]}>;
@@ -205,10 +235,18 @@ export class OdCommand<
     return this._odInnerType._getCached();
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.shape}
+   */
   public get shape() {
     return this._odInnerType.shape;
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.strict}
+   */
   public strict(message?: string | {message?: string}) {
     const innerType = this._odInnerType.strict(message);
     return new OdCommand({
@@ -221,6 +259,11 @@ export class OdCommand<
       },
     });
   }
+
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.strip}
+   */
   public strip() {
     const innerType = this._odInnerType.strip();
     return new OdCommand({
@@ -233,6 +276,11 @@ export class OdCommand<
       },
     });
   }
+
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.passthrough}
+   */
   public passthrough() {
     const innerType = this._odInnerType.passthrough();
     return new OdCommand({
@@ -246,6 +294,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.extend}
+   */
   public extend<Augmentation extends z.ZodRawShape>(
     augmentation: Augmentation,
   ) {
@@ -261,6 +313,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.augment}
+   */
   public augment<Augmentation extends z.ZodRawShape>(
     augmentation: Augmentation,
   ) {
@@ -275,6 +331,11 @@ export class OdCommand<
       },
     });
   }
+
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.merge}
+   */
   public merge<Incoming extends z.AnyZodObject>(merging: Incoming) {
     const innerType = this._odInnerType.merge(merging);
     return new OdCommand({
@@ -288,6 +349,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.setKey}
+   */
   public setKey<Key extends string, Schema extends z.ZodTypeAny>(
     key: Key,
     schema: Schema,
@@ -304,6 +369,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.catchall}
+   */
   public catchall<Index extends z.ZodTypeAny>(index: Index) {
     const innerType = this._odInnerType.catchall(index);
     return new OdCommand({
@@ -317,6 +386,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.pick}
+   */
   public pick<
     Mask extends {
       [k in keyof T]?: true;
@@ -334,6 +407,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.omit}
+   */
   public omit<
     Mask extends {
       [k in keyof T]?: true;
@@ -351,6 +428,10 @@ export class OdCommand<
     });
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.deepPartial}
+   */
   public deepPartial() {
     const innerType =
       this._odInnerType.deepPartial() as unknown as DeepPartial<T>;
@@ -364,6 +445,11 @@ export class OdCommand<
       },
     });
   }
+
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.partial}
+   */
   public partial(): OdCommand<
     z.ZodObject<
       {[k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>},
@@ -401,6 +487,10 @@ export class OdCommand<
     }) as any;
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.required}
+   */
   public required(): OdCommand<
     z.ZodObject<
       {
@@ -448,12 +538,16 @@ export class OdCommand<
     }) as any;
   }
 
+  /**
+   * @category ZodObject API
+   * @see {@linkcode ZodObject.keyof}
+   */
   public keyof() {
     return this._odInnerType.keyof();
   }
 
   /**
-   *
+   * Creates a Yargs command on the given Yargs instance.
    * @param argv Yargs instance
    * @returns Yargs instance with a new command on it
    * @internal
@@ -477,7 +571,10 @@ export class OdCommand<
 }
 
 /**
- * Adapted from Zod sources
+ * Adapted from Zod sources.
+ *
+ * This just differs in the input and return types, which expects `params` to be
+ * a) defined, and b) contain a `description` property.
  * @internal
  * @param params Create params
  * @returns Create params consolidated for use in a {@linkcode z.ZodTypeDef}
@@ -500,4 +597,43 @@ function processCreateParams(
     return {message: invalid_type_error ?? ctx.defaultError};
   };
   return {errorMap: customMap, description};
+}
+
+export abstract class OdCommandZodType {
+  command(
+    this: z.AnyZodObject,
+    command: string | readonly string[],
+    description: string,
+  ) {
+    const {shape} = this;
+    const newShape = Object.fromEntries(
+      Object.entries(shape as z.ZodRawShape).map(([key, value]) => {
+        if (value instanceof z.ZodOptional) {
+          return [key, value];
+        }
+        return [key, value.optional()];
+      }),
+    ) as {
+      [K in keyof typeof shape]: (typeof shape)[K] extends z.ZodOptional<any>
+        ? (typeof shape)[K]
+        : z.ZodOptional<(typeof shape)[K]>;
+    };
+
+    const partialThis = this.augment(newShape);
+    return OdCommand.create({command}, {description}, partialThis);
+  }
+
+  /**
+   * @todo Should we just return `undefined` if `this` is not a `ZodObject`?
+   */
+  _toYargsOptionsRecord() {
+    if (!(this instanceof z.ZodObject)) {
+      throw new TypeError('Expected ZodObject');
+    }
+    const record: Record<string, y.Options> = {};
+    for (const key of Object.keys(this._def.shape)) {
+      record[key] = this.shape[key]._toYargsOptions();
+    }
+    return record;
+  }
 }

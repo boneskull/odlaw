@@ -2,8 +2,7 @@
   "extends": "@tsconfig/node16/tsconfig.json",
   "compilerOptions": {
     "types": ["node"],
-    "noEmit": true,
-    "composite": true
+    "noEmit": true
   },
   "include": ["."],
   "references": [

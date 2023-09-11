@@ -1,7 +1,7 @@
 import unexpected from 'unexpected';
 import zod from 'zod';
 
-import {register, unregister} from '../../../src/zod';
+import {register, unregister} from '../../src/zod';
 
 const expect = unexpected.clone();
 
@@ -26,6 +26,7 @@ describe('od', function () {
 
   describe('unsupported types', function () {
     it('should not have a _yargsType', function () {
+      // @ts-expect-error no such prop
       expect(z.date()._yargsType, 'to be', undefined);
     });
   });
@@ -37,7 +38,7 @@ describe('od', function () {
           defaultDescription: 'cows',
         }),
         'to satisfy',
-        {_yargsType: {type: 'boolean'}},
+        {_odInnerType: {_yargsType: {type: 'boolean'}}},
       );
     });
   });
@@ -47,7 +48,7 @@ describe('od', function () {
       const schema = z.boolean().describe('pigs').option({
         describe: 'hogs',
       });
-      expect(schema._toYargsOptions(false), 'to satisfy', {
+      expect(schema._toYargsOptions(), 'to satisfy', {
         describe: 'pigs',
       });
     });
@@ -56,31 +57,33 @@ describe('od', function () {
       const schema = z.boolean().option({
         describe: 'hogs',
       });
-      expect(schema._toYargsOptions(false), 'to satisfy', {
+      expect(schema._toYargsOptions(), 'to satisfy', {
         describe: 'hogs',
       });
     });
 
     it('should return the description when set only via inner type', function () {
       const schema = z.boolean().describe('pigs');
-      expect(schema._toYargsOptions(false), 'to satisfy', {
+      expect(schema._toYargsOptions(), 'to satisfy', {
         describe: 'pigs',
       });
     });
 
     describe('when a schema does not set `demandOption`', function () {
-      it('should pass through the value of "strict"', function () {
+      it('should assume the option is not demanded', function () {
         const schema = z.boolean();
-        expect(schema._toYargsOptions(true), 'to satisfy', {
-          demandOption: true,
-        });
+        expect(
+          schema._toYargsOptions(),
+          'not to have property',
+          'demandOption',
+        );
       });
     });
 
     describe('when a schema sets `demandOption`', function () {
       it('should use the schema value', function () {
         const schema = z.boolean().demandOption();
-        expect(schema._toYargsOptions(false), 'to satisfy', {
+        expect(schema._toYargsOptions(), 'to satisfy', {
           demandOption: true,
         });
       });
@@ -88,7 +91,7 @@ describe('od', function () {
 
     describe('when called on an unsupported type', function () {
       it('should throw', function () {
-        expect(() => z.date()._toYargsOptions(true), 'to throw a', TypeError);
+        expect(() => z.date()._toYargsOptions(), 'to throw a', TypeError);
       });
     });
   });
@@ -111,6 +114,7 @@ describe('od', function () {
     describe('when called on a non-ZodObject ZodType', function () {
       it('should throw', function () {
         expect(
+          // @ts-expect-error - no such method
           () => z.boolean()._toYargsOptionsRecord(),
           'to throw a',
           TypeError,
@@ -118,9 +122,10 @@ describe('od', function () {
       });
     });
 
-    describe('when called on an OdType', function () {
+    describe('when called on an OdOption', function () {
       it('should throw', function () {
         expect(
+          // @ts-expect-error - no such method
           () => z.boolean().defaultDescription('mooo')._toYargsOptionsRecord(),
           'to throw a',
           TypeError,

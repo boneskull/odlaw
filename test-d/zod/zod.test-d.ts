@@ -2,18 +2,18 @@ import '../../src/zod/augments';
 
 import {expectType} from 'tsd';
 import z from 'zod';
-import {OdType, YargsType} from '../../src/zod';
+import {OdOption, YargsType} from '../../src/zod';
 
 expectType<YargsType<boolean>>(z.boolean()._yargsType);
 
-expectType<OdType<z.ZodBoolean>>(z.boolean().option());
-expectType<OdType<z.ZodBoolean, {count: true}>>(z.boolean().count());
+expectType<OdOption<z.ZodBoolean>>(z.boolean().option());
+expectType<OdOption<z.ZodBoolean, {count: true}>>(z.boolean().count());
 expectType<{type: 'boolean'; demandOption: false}>(
   z.boolean()._toYargsOptions(false),
 );
 
 // common props
-expectType<OdType<z.ZodBoolean, {alias: ['alice', 'bob']}>>(
+expectType<OdOption<z.ZodBoolean, {alias: ['alice', 'bob']}>>(
   z.boolean().alias(['alice', 'bob']),
 );
 
@@ -28,9 +28,9 @@ expectType<{
   demandOption: false;
 }>(z.boolean().alias(['alice', 'bob'])._toYargsOptions(false));
 
-expectType<OdType<z.ZodBoolean, {count: true}>>(z.boolean().count());
+expectType<OdOption<z.ZodBoolean, {count: true}>>(z.boolean().count());
 
-expectType<OdType<z.ZodBoolean, {count: true; alias: 'bob'}>>(
+expectType<OdOption<z.ZodBoolean, {count: true; alias: 'bob'}>>(
   z.boolean().count().alias('bob'),
 );
 

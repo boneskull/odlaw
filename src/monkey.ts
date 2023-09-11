@@ -47,7 +47,7 @@ export function monkeypatch<T extends object, U extends object>(
   props: U,
 ): T & U {
   // eslint-disable-next-line no-prototype-builtins
-  if (obj.hasOwnProperty(flag)) {
+  if (Reflect.hasOwnProperty.call(obj, flag)) {
     return obj as any;
   }
   const descriptorEntries: [
@@ -73,8 +73,7 @@ export function unmonkeypatch<T extends object>(
   flag: symbol,
   obj: T,
 ): Exclude<T, keyof unknown> | T {
-  // eslint-disable-next-line no-prototype-builtins
-  if (!obj.hasOwnProperty(flag)) {
+  if (!Reflect.hasOwnProperty.call(obj, flag)) {
     return obj as any;
   }
   const descriptors = propIndex.get(obj);
@@ -88,4 +87,35 @@ export function unmonkeypatch<T extends object>(
   propIndex.delete(obj);
 
   return obj as any;
+}
+
+const proxyIndex = new WeakMap<new (...args: any[]) => object, object>();
+
+export function createPrototypeProxy<T extends object>(
+  flag: symbol,
+  ctor: new (...args: any[]) => T,
+  handler: ProxyHandler<T>,
+): void {
+  if (Reflect.hasOwnProperty.call(ctor, flag)) {
+    return;
+  }
+  monkeypatch(flag, ctor, {});
+  const proxy = new Proxy(ctor.prototype, handler);
+  proxyIndex.set(ctor, ctor.prototype);
+  Object.setPrototypeOf(ctor, proxy);
+}
+
+export function restorePrototypeProxy<T extends object>(
+  flag: symbol,
+  ctor: new (...args: any[]) => T,
+) {
+  if (!Reflect.hasOwnProperty.call(ctor, flag)) {
+    return;
+  }
+  unmonkeypatch(flag, ctor);
+  const proto = proxyIndex.get(ctor);
+  if (proto) {
+    Object.setPrototypeOf(ctor, proto);
+  }
+  proxyIndex.delete(ctor);
 }

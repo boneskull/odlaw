@@ -3,11 +3,11 @@ import z from 'zod';
 import {OdCommand, OdMiddleware} from '../../src/zod';
 
 type someZodObject = z.ZodObject<
-  {foo: z.ZodBoolean},
+  {foo: z.ZodOptional<z.ZodBoolean>},
   'strip',
   z.ZodTypeAny,
-  {foo: boolean},
-  {foo: boolean}
+  {foo?: boolean},
+  {foo?: boolean}
 >;
 
 expectType<OdCommand<someZodObject, {command: string | readonly string[]}>>(
@@ -31,7 +31,7 @@ expectAssignable<
     z.AnyZodObject,
     {
       command: string | readonly string[];
-      middlewares: OdMiddleware<z.AnyZodObject>[];
+      middlewares: OdMiddleware<{}>[];
     }
   >
 >(
@@ -47,7 +47,7 @@ expectAssignable<
     someZodObject,
     {
       command: string | readonly string[];
-      middlewares: OdMiddleware<someZodObject>[];
+      middlewares: OdMiddleware<{foo: z.ZodOptional<z.ZodBoolean>}>[];
     }
   >
 >(
@@ -68,7 +68,7 @@ expectAssignable<
     someZodObject,
     {
       command: string | readonly string[];
-      middlewares: OdMiddleware<someZodObject>[];
+      middlewares: OdMiddleware<{foo: z.ZodOptional<z.ZodBoolean>}>[];
     }
   >
 >(

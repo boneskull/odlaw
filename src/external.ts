@@ -1,5 +1,5 @@
 export {z} from 'zod';
 export {odlaw, odlawSync} from './yargs';
-export type * from './zod/command';
-export {OdType, OdTypeDef} from './zod/od';
-export type * from './zod/option';
+export {OdOption as OdType, OdOptionTypeDef as OdTypeDef} from './zod/od';
+export type * from './zod/od-command';
+export type * from './zod/od-option';
