@@ -14,9 +14,9 @@ import type {OdCommand} from './command';
 import type {
   DynamicOdOptions,
   OdOptionsType,
+  ShapeToOdOptions,
   YargsType,
   YargsifyOdOptions,
-  ZodObjectToYargsOptionsRecord,
 } from './option';
 import type {kOd} from './register';
 
@@ -129,19 +129,6 @@ declare module 'zod' {
     _toYargsOptions<Strict extends boolean>(
       strict: Strict,
     ): ExpandDeep<YargsifyOdOptions<this, {demandOption: Strict}>>;
-
-    /**
-     * Generate a mapping of option name to `yargs.options()` object for this
-     * `ZodObject`.
-     *
-     * This will call {@linkcode _toYargsOptions} on each property of the
-     * `ZodObject`'s `shape`.
-     *
-     * @internal
-     */
-    _toYargsOptionsRecord(): this extends z.AnyZodObject
-      ? ExpandDeep<ZodObjectToYargsOptionsRecord<this>>
-      : Record<string, any>;
   }
 
   /**
@@ -158,9 +145,24 @@ declare module 'zod' {
       command: string | readonly string[],
       description: string,
     ): OdCommand<
-      ZodObject<T, UnknownKeys, Catchall>,
+      ZodObject<
+        {[K in keyof T]: z.ZodOptional<T[K]>},
+        this['_def']['unknownKeys'],
+        this['_def']['catchall']
+      >,
       {command: typeof command}
     >;
+
+    /**
+     * Generate a mapping of option name to `yargs.options()` object for this
+     * `ZodObject`.
+     *
+     * This will call {@linkcode _toYargsOptions} on each property of the
+     * `ZodObject`'s `shape`.
+     *
+     * @internal
+     */
+    _toYargsOptionsRecord(): ShapeToOdOptions<this['shape']>;
   }
 
   const command: typeof OdCommand.create;

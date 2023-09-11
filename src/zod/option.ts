@@ -59,18 +59,14 @@ export type DynamicOdOptions = Pick<
   | 'normalize'
 >;
 
-export type ShapeToOdOptions<
-  S extends z.ZodRawShape,
-  Strict extends boolean = false,
-> = {
-  [K in keyof S]: YargsifyOdOptions<S[K], {demandOption: Strict}>;
+export type ShapeToOdOptions<S extends z.ZodRawShape> = {
+  [K in keyof S]: S[K] extends z.ZodOptional<infer T>
+    ? YargsifyOdOptions<T, {demandOption: false}>
+    : YargsifyOdOptions<S[K], {demandOption: true}>;
 };
 
 export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
-  ShapeToOdOptions<
-    T['shape'],
-    T['_def']['unknownKeys'] extends 'strict' ? true : false
-  >;
+  ShapeToOdOptions<T['shape']>;
 
 /**
  * Merges some {@linkcode DynamicOdOptions} with {@linkcode OdOptions} (from {@linkcode OdType._def.odOptions}).

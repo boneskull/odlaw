@@ -199,7 +199,22 @@ export function register(zod: typeof z) {
       command: string | readonly string[],
       description: string,
     ) {
-      return OdCommand.create({command}, {description}, this);
+      const {shape} = this;
+      const newShape = Object.fromEntries(
+        Object.entries(shape as z.ZodRawShape).map(([key, value]) => {
+          if (value instanceof z.ZodOptional) {
+            return [key, value];
+          }
+          return [key, value.optional()];
+        }),
+      ) as {
+        [K in keyof typeof shape]: (typeof shape)[K] extends z.ZodOptional<any>
+          ? (typeof shape)[K]
+          : z.ZodOptional<(typeof shape)[K]>;
+      };
+
+      const partialThis = this.augment(newShape);
+      return OdCommand.create({command}, {description}, partialThis);
     },
   });
 

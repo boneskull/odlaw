@@ -11,8 +11,8 @@ import z from 'zod';
 import {OdType} from '..';
 import {ShapeToOdOptions} from './option';
 
-export type OdMiddleware<T extends z.AnyZodObject> = y.MiddlewareFunction<
-  ShapeToOdOptions<T['shape']>
+export type OdMiddleware<T extends z.ZodRawShape> = y.MiddlewareFunction<
+  ShapeToOdOptions<T>
 >;
 
 /**
@@ -23,8 +23,8 @@ export type OdCommandHandler<Shape extends z.ZodRawShape> = (
   args: y.ArgumentsCamelCase<y.InferredOptionTypes<ShapeToOdOptions<Shape>>>,
 ) => void | Promise<void>;
 
-export interface DynamicOdCommandOptions<T extends z.AnyZodObject> {
-  handler?: OdCommandHandler<T['shape']>;
+export interface DynamicOdCommandOptions<T extends z.ZodRawShape> {
+  handler?: OdCommandHandler<T>;
   /**
    * @todo existentialize
    */
@@ -32,7 +32,7 @@ export interface DynamicOdCommandOptions<T extends z.AnyZodObject> {
   deprecated?: boolean | string;
 }
 
-export interface OdCommandOptions<T extends z.AnyZodObject>
+export interface OdCommandOptions<T extends z.ZodRawShape>
   extends DynamicOdCommandOptions<T> {
   command: string | readonly string[];
 }
@@ -42,7 +42,7 @@ export interface OdCommandOptions<T extends z.AnyZodObject>
  */
 export interface OdCommandTypeDef<
   T extends z.AnyZodObject,
-  OCO extends OdCommandOptions<T> = OdCommandOptions<T>,
+  OCO extends OdCommandOptions<T['shape']> = OdCommandOptions<T['shape']>,
 > extends z.ZodTypeDef {
   odCommandOptions: OCO;
   innerType: T;
@@ -56,17 +56,46 @@ export type OdCommandRawCreateParams = SetRequired<
 
 function createOdCommand<
   T extends z.AnyZodObject,
-  OCO extends OdCommandOptions<T>,
->(odCommandOptions: OCO, params: OdCommandRawCreateParams, innerType?: T) {
+  OCO extends OdCommandOptions<{
+    [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
+  }>,
+>(
+  odCommandOptions: OCO,
+  params: OdCommandRawCreateParams,
+  innerType?: T,
+): OdCommand<
+  z.ZodObject<
+    {
+      [k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>;
+    },
+    T['_def']['unknownKeys'],
+    T['_def']['catchall']
+  >,
+  OCO
+> {
   innerType ??= z.object({}) as T;
 
+  const newShape = Object.fromEntries(
+    Object.entries(innerType.shape).map(([key, value]) => {
+      if (value instanceof z.ZodOptional) {
+        return [key, value];
+      }
+      return [key, (value as any).optional()];
+    }),
+  ) as {
+    [K in keyof T['shape']]: T['shape'][K] extends z.ZodOptional<any>
+      ? T['shape'][K]
+      : z.ZodOptional<T['shape'][K]>;
+  };
+
+  const partialInnerType = innerType.augment(newShape);
   const def = {
-    innerType,
+    innerType: partialInnerType,
     odCommandOptions,
     ...processCreateParams(params),
   };
 
-  return new OdCommand(def);
+  return new OdCommand(def) as any;
 }
 
 /**
@@ -111,30 +140,38 @@ export type DeepPartial<T extends z.ZodTypeAny> =
  */
 export class OdCommand<
   T extends z.AnyZodObject,
-  OCO extends OdCommandOptions<T> = OdCommandOptions<T>,
+  OCO extends OdCommandOptions<T['shape']> = OdCommandOptions<T['shape']>,
 > extends z.ZodType<T['_output'], OdCommandTypeDef<T, OCO>, T['_input']> {
-  static create = createOdCommand;
+  public static create = createOdCommand;
 
-  get _odInnerType(): T {
+  /**
+   * @internal
+   */
+  public get _odInnerType(): T {
     return this._def.innerType;
   }
 
-  _parse(input: z.ParseInput): z.ParseReturnType<T['_output']> {
+  /**
+   * @internal
+   */
+  public override _parse(input: z.ParseInput): z.ParseReturnType<T['_output']> {
     return this._def.innerType._parse(input);
   }
 
-  middlewares(
-    middlewares: OdMiddleware<T>[],
-  ): OdCommand<T, OCO & {middlewares: OdMiddleware<T>[]}>;
-  middlewares(
-    ...middlewares: OdMiddleware<T>[]
-  ): OdCommand<T, OCO & {middlewares: OdMiddleware<T>[]}>;
+  public middlewares(
+    middlewares: OdMiddleware<T['shape']>[],
+  ): OdCommand<T, OCO & {middlewares: OdMiddleware<T['shape']>[]}>;
+  public middlewares(
+    ...middlewares: OdMiddleware<T['shape']>[]
+  ): OdCommand<T, OCO & {middlewares: OdMiddleware<T['shape']>[]}>;
   /**
    *
    * @param middlewares One ore more Yargs middleware functions
    * @returns New {@linkcode OdCommand} with the given middlewares
    */
-  middlewares(...middlewares: OdMiddleware<T>[] | [OdMiddleware<T>[]]) {
+  public middlewares(
+    ...middlewares: OdMiddleware<T['shape']>[] | [OdMiddleware<T['shape']>[]]
+  ) {
     if (Array.isArray(middlewares[0])) {
       return new OdCommand({
         ...this._def,
@@ -153,78 +190,97 @@ export class OdCommand<
     });
   }
 
-  _getCached() {
+  /**
+   * @internal
+   */
+  public _getCached() {
     return this._odInnerType._getCached();
   }
 
-  get shape() {
+  public get shape() {
     return this._odInnerType.shape;
   }
 
-  strict(message?: string | {message?: string}) {
+  public strict(message?: string | {message?: string}) {
     const innerType = this._odInnerType.strict(message);
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
-  strip() {
+  public strip() {
     const innerType = this._odInnerType.strip();
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
-  passthrough() {
+  public passthrough() {
     const innerType = this._odInnerType.passthrough();
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  extend<Augmentation extends z.ZodRawShape>(augmentation: Augmentation) {
+  public extend<Augmentation extends z.ZodRawShape>(
+    augmentation: Augmentation,
+  ) {
     const innerType = this._odInnerType.extend(augmentation);
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  augment<Augmentation extends z.ZodRawShape>(augmentation: Augmentation) {
+  public augment<Augmentation extends z.ZodRawShape>(
+    augmentation: Augmentation,
+  ) {
     const innerType = this._odInnerType.augment(augmentation);
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
-  merge<Incoming extends z.AnyZodObject>(merging: Incoming) {
+  public merge<Incoming extends z.AnyZodObject>(merging: Incoming) {
     const innerType = this._odInnerType.merge(merging);
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  setKey<Key extends string, Schema extends z.ZodTypeAny>(
+  public setKey<Key extends string, Schema extends z.ZodTypeAny>(
     key: Key,
     schema: Schema,
   ) {
@@ -233,23 +289,27 @@ export class OdCommand<
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  catchall<Index extends z.ZodTypeAny>(index: Index) {
+  public catchall<Index extends z.ZodTypeAny>(index: Index) {
     const innerType = this._odInnerType.catchall(index);
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  pick<
+  public pick<
     Mask extends {
       [k in keyof T]?: true;
     },
@@ -259,12 +319,14 @@ export class OdCommand<
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  omit<
+  public omit<
     Mask extends {
       [k in keyof T]?: true;
     },
@@ -274,37 +336,35 @@ export class OdCommand<
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
 
-  deepPartial() {
+  public deepPartial() {
     const innerType =
       this._odInnerType.deepPartial() as unknown as DeepPartial<T>;
     return new OdCommand({
       innerType,
       description: this._def.description,
       odCommandOptions: {
-        ...(this._def.odCommandOptions as OdCommandOptions<typeof innerType>),
+        ...(this._def.odCommandOptions as OdCommandOptions<
+          typeof innerType.shape
+        >),
       },
     });
   }
-  partial(): OdCommand<
+  public partial(): OdCommand<
     z.ZodObject<
       {[k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>},
       T['_def']['unknownKeys'],
       T['_def']['catchall']
     >,
-    OdCommandOptions<
-      z.ZodObject<
-        {[k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>},
-        T['_def']['unknownKeys'],
-        T['_def']['catchall']
-      >
-    >
+    OdCommandOptions<{[k in keyof T['shape']]: z.ZodOptional<T['shape'][k]>}>
   >;
-  partial<Mask extends {[k in keyof T['shape']]?: true}>(
+  public partial<Mask extends {[k in keyof T['shape']]?: true}>(
     mask: Mask,
   ): OdCommand<
     z.ZodObject<
@@ -317,18 +377,14 @@ export class OdCommand<
       T['_def']['catchall']
     >,
     OdCommandOptions<
-      z.ZodObject<
-        z.objectUtil.noNever<{
-          [k in keyof T['shape']]: k extends keyof Mask
-            ? z.ZodOptional<T['shape'][k]>
-            : T['shape'][k];
-        }>,
-        T['_def']['unknownKeys'],
-        T['_def']['catchall']
-      >
+      z.objectUtil.noNever<{
+        [k in keyof T['shape']]: k extends keyof Mask
+          ? z.ZodOptional<T['shape'][k]>
+          : T['shape'][k];
+      }>
     >
   >;
-  partial(mask?: any) {
+  public partial(mask?: any) {
     const innerType = this._odInnerType.partial(mask);
     return new OdCommand({
       innerType,
@@ -337,7 +393,7 @@ export class OdCommand<
     }) as any;
   }
 
-  required(): OdCommand<
+  public required(): OdCommand<
     z.ZodObject<
       {
         [k in keyof T['shape']]: z.deoptional<T['shape'][k]>;
@@ -345,17 +401,11 @@ export class OdCommand<
       T['_def']['unknownKeys'],
       T['_def']['catchall']
     >,
-    OdCommandOptions<
-      z.ZodObject<
-        {
-          [k in keyof T['shape']]: z.deoptional<T['shape'][k]>;
-        },
-        T['_def']['unknownKeys'],
-        T['_def']['catchall']
-      >
-    >
+    OdCommandOptions<{
+      [k in keyof T['shape']]: z.deoptional<T['shape'][k]>;
+    }>
   >;
-  required<
+  public required<
     Mask extends {
       [k in keyof T['shape']]?: true;
     },
@@ -372,18 +422,14 @@ export class OdCommand<
       T['_def']['catchall']
     >,
     OdCommandOptions<
-      z.ZodObject<
-        z.objectUtil.noNever<{
-          [k in keyof T['shape']]: k extends keyof Mask
-            ? z.deoptional<T['shape'][k]>
-            : T['shape'][k];
-        }>,
-        T['_def']['unknownKeys'],
-        T['_def']['catchall']
-      >
+      z.objectUtil.noNever<{
+        [k in keyof T['shape']]: k extends keyof Mask
+          ? z.deoptional<T['shape'][k]>
+          : T['shape'][k];
+      }>
     >
   >;
-  required(mask?: any) {
+  public required(mask?: any) {
     const innerType = this._odInnerType.required(mask);
     return new OdCommand({
       innerType,
@@ -394,7 +440,7 @@ export class OdCommand<
     }) as any;
   }
 
-  keyof() {
+  public keyof() {
     return this._odInnerType.keyof();
   }
 
@@ -404,13 +450,12 @@ export class OdCommand<
    * @returns Yargs instance with a new command on it
    * @internal
    */
-  _toYargsCommand<Y>(argv: y.Argv<Y>): y.Argv<Y> {
+  public _toYargsCommand<Y>(argv: y.Argv<Y>): y.Argv<Y> {
     const {command, handler, middlewares, deprecated} =
       this._def.odCommandOptions;
     const description = this._def.description;
     const innerType = this._def.innerType;
     const options = innerType._toYargsOptionsRecord();
-
     const yargsCommand = argv.command(
       command,
       description,

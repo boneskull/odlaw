@@ -7,7 +7,7 @@ import {
   resetCache,
   searchConfig,
   searchConfigSync,
-} from '../../src/config';
+} from '../src/config';
 
 const expect = unexpected.clone();
 
