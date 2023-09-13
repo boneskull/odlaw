@@ -25,13 +25,6 @@ export type OdInputString =
   | readonly string[]
   | readonly [string, ...string[]];
 
-/**
- * The input types which translate to Yargs options.
- *
- * Notably, `array` and `count` are absent from this list; they are handled via `array: true` and `count: true`, respectively. Yargs will _change the type_ of any option having `count: true` to `number`.
- */
-export type OdInput = boolean | number | OdInputString;
-
 export type InputToYargsType<Input> = Input extends boolean
   ? 'boolean'
   : Input extends number
@@ -100,8 +93,15 @@ export type Yargsify<
   DOO extends OdOptions,
 > = ExpandDeep<T extends {_yargsType: infer U} ? U & DOO : never>;
 
+function assertValidInnerType(t: OdSupportedType) {
+  if (!getYargsType(t)) {
+    throw new TypeError(`Unsupported method call in ${t._def.typeName}`);
+  }
+}
+
 /**
- * This object is grafted onto supported {@linkcode z.ZodType} subclasses.
+ * This object is grafted onto {@linkcode z.ZodType} subclasses which can be
+ * used as Yargs options.
  */
 export const OdOptionZodType = {
   alias(this: OdSupportedType, alias: string | string[]) {
@@ -141,6 +141,7 @@ export const OdOptionZodType = {
   },
 
   option(this: OdSupportedType, config?: OdOptions): OdSupportedType {
+    assertValidInnerType(this);
     const This = (this as any).constructor;
     return new This({
       ...this._def,
@@ -149,6 +150,7 @@ export const OdOptionZodType = {
   },
 
   _toYargsOptions(this: OdSupportedType): y.Options {
+    assertValidInnerType(this);
     return {
       ...this._yargsType,
       ...this._def.odOptions,
@@ -160,18 +162,22 @@ export const OdOptionZodType = {
 /**
  * Returns the equivalent Yargs type for a given `ZodType`.
  *
- * This cannot be a `get _yargsType` on the class because it _must_ be `configurable`.
+ * This cannot be a `get _yargsType` on the class because it _must_ be
+ * `configurable` if we have any hope of undoing the damage done by
+ * `monkeypatch()`.
  */
-Object.defineProperties(OdOptionZodType, {
-  _yargsType: {
-    get() {
-      return getYargsType(this);
-    },
-    configurable: true,
-    enumerable: false,
+Object.defineProperty(OdOptionZodType, '_yargsType', {
+  get() {
+    return getYargsType(this);
   },
+  configurable: true,
+  enumerable: false,
 });
 
+/**
+ * Translates a Yargs-options-supporting `ZodType` into the equivalent Yargs
+ * type, or `undefined` if the `ZodType` is unsupported.
+ */
 export function getYargsType<T extends z.ZodTypeAny>(
   schema: T,
 ): {type: y.Options['type']} | undefined {
@@ -184,13 +190,7 @@ export function getYargsType<T extends z.ZodTypeAny>(
     case z.ZodFirstPartyTypeKind.ZodNumber:
       return {type: 'number'};
     case z.ZodFirstPartyTypeKind.ZodArray:
-      if (
-        schema._def.innerType._def.typeName ===
-        z.ZodFirstPartyTypeKind.ZodString
-      ) {
-        return {type: 'string'};
-      }
-      break;
+      return getYargsType(schema._def.type);
     case z.ZodFirstPartyTypeKind.ZodOptional:
       return getYargsType(schema._def.innerType);
   }

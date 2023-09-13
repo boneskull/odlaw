@@ -11,7 +11,13 @@ import type {Exact} from 'type-fest';
 import type * as y from 'yargs';
 import type z from 'zod';
 import type {ExpandDeep} from '../util';
-import {OdCommandOptions, OdMiddleware, createOdCommand} from './od-command';
+import {
+  OdCommandCreateParams,
+  OdCommandHandler,
+  OdCommandOptions,
+  OdMiddleware,
+  createOdCommand,
+} from './od-command';
 import type {
   OdOptions,
   OdSupportedType,
@@ -606,10 +612,18 @@ declare module 'zod' {
   > {
     command(
       command: string | readonly string[],
-      description: string,
+      description?: string,
+      handler?: OdCommandHandler<T>,
     ): ZodObject<
       {[K in keyof T]: z.ZodOptional<T[K]>},
-      this['_def']['unknownKeys'],
+      'passthrough',
+      this['_def']['catchall']
+    >;
+    command<OCO extends OdCommandOptions<T>>(
+      params: OdCommandCreateParams<OCO>,
+    ): ZodObject<
+      {[K in keyof T]: z.ZodOptional<T[K]>},
+      'passthrough',
       this['_def']['catchall']
     >;
 
@@ -617,14 +631,30 @@ declare module 'zod' {
       middlewares: OdMiddleware<T>[],
     ): ZodObject<
       {[K in keyof T]: z.ZodOptional<T[K]>},
-      this['_def']['unknownKeys'],
+      'passthrough',
       this['_def']['catchall']
     >;
     middlewares(
       ...middlewares: OdMiddleware<T>[]
     ): ZodObject<
       {[K in keyof T]: z.ZodOptional<T[K]>},
-      this['_def']['unknownKeys'],
+      'passthrough',
+      this['_def']['catchall']
+    >;
+
+    handler(
+      handler: OdCommandHandler<T>,
+    ): ZodObject<
+      {[K in keyof T]: z.ZodOptional<T[K]>},
+      'passthrough',
+      this['_def']['catchall']
+    >;
+
+    deprecated(
+      message?: string | boolean,
+    ): ZodObject<
+      {[K in keyof T]: z.ZodOptional<T[K]>},
+      'passthrough',
       this['_def']['catchall']
     >;
 

@@ -1,11 +1,17 @@
 import unexpected from 'unexpected';
 import zod from 'zod';
 
-import {register, unregister} from '../../src/zod';
+import {
+  OdSupportedType,
+  getYargsType,
+  register,
+  unregister,
+} from '../../src/zod';
+import {SUPPORTED_OPTION_ZOD_TYPES} from '../../src/zod/register';
 
 const expect = unexpected.clone();
 
-describe('od', function () {
+describe('option handling', function () {
   let z: typeof zod;
 
   beforeEach(function () {
@@ -24,14 +30,52 @@ describe('od', function () {
     });
   });
 
-  describe('unsupported types', function () {
-    it('should not have a _yargsType', function () {
-      // @ts-expect-error no such prop
-      expect(z.date()._yargsType, 'to be', undefined);
-    });
-  });
-
   describe('_yargsType', function () {
+    describe('unsupported types', function () {
+      for (const typeName of Object.values(zod.ZodFirstPartyTypeKind)) {
+        if (
+          typeName in zod &&
+          !SUPPORTED_OPTION_ZOD_TYPES.has(zod[typeName] as any)
+        ) {
+          describe(typeName, function () {
+            it('should not have a _yargsType', function () {
+              // @ts-expect-error no such prop
+              expect(z.date()._yargsType, 'to be undefined');
+            });
+          });
+        }
+      }
+    });
+
+    describe('supported types', function () {
+      for (const ctor of SUPPORTED_OPTION_ZOD_TYPES) {
+        describe(ctor.name, function () {
+          let schema: OdSupportedType;
+
+          beforeEach(function () {
+            schema =
+              ctor.create.length === 1
+                ? // @ts-expect-error wonky usage
+                  ctor.create({})
+                : // @ts-expect-error wonky usage
+                  ctor.create(z.string(), {});
+          });
+
+          it('should have a _yargsType', function () {
+            expect(schema._yargsType, 'to be defined');
+          });
+
+          it('should be set to the equivalent yargs type', function () {
+            expect(schema._yargsType, 'to equal', getYargsType(schema));
+          });
+        });
+      }
+    });
+
+    // it('should exist on supported types', function () {
+    //   expect(z.boolean()._yargsType, 'to equal', {type: 'boolean'});
+    // });
+
     it('should be set to the equivalent yargs type', function () {
       expect(
         z.boolean().describe('pigs').option({

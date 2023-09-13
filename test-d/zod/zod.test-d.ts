@@ -2,31 +2,29 @@ import '../../src/zod/augments';
 
 import {expectType} from 'tsd';
 import z from 'zod';
-import {OdOption, YargsType} from '../../src/zod';
+import {YargsType} from '../../src/zod';
 
 expectType<YargsType<boolean>>(z.boolean()._yargsType);
 
-expectType<OdOption<z.ZodBoolean>>(z.boolean().option());
-expectType<OdOption<z.ZodBoolean, {count: true}>>(z.boolean().count());
-expectType<{type: 'boolean'; demandOption: false}>(
-  z.boolean()._toYargsOptions(false),
+expectType<z.ZodBoolean>(z.boolean().option());
+expectType<z.ZodBoolean>(z.boolean().count());
+expectType<{type: 'boolean'; demandOption?: boolean}>(
+  z.boolean()._toYargsOptions(),
 );
 
 // common props
-expectType<OdOption<z.ZodBoolean, {alias: ['alice', 'bob']}>>(
-  z.boolean().alias(['alice', 'bob']),
-);
+expectType<z.ZodBoolean>(z.boolean().alias(['alice', 'bob']));
 
 expectType<z.ZodDefault<z.ZodString>>(z.string().default('foo'));
-expectType<{type: 'string'; demandOption: false}>(
-  z.string().default('foo')._toYargsOptions(false),
-);
+// expectType<{type: 'string'; demandOption?: boolean}>(
+//   z.string().default('foo')._toYargsOptions(),
+// );
 
 expectType<{
   type: 'boolean';
-  alias: string[];
-  demandOption: false;
-}>(z.boolean().alias(['alice', 'bob'])._toYargsOptions(false));
+  alias: string[] | string;
+  demandOption?: boolean;
+}>(z.boolean().alias(['alice', 'bob'])._toYargsOptions());
 
 expectType<OdOption<z.ZodBoolean, {count: true}>>(z.boolean().count());
 

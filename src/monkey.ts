@@ -46,7 +46,6 @@ export function monkeypatch<T extends object, U extends object>(
   obj: T,
   props: U,
 ): T & U {
-  // eslint-disable-next-line no-prototype-builtins
   if (Reflect.hasOwnProperty.call(obj, flag)) {
     return obj as any;
   }
@@ -87,35 +86,4 @@ export function unmonkeypatch<T extends object>(
   propIndex.delete(obj);
 
   return obj as any;
-}
-
-const proxyIndex = new WeakMap<new (...args: any[]) => object, object>();
-
-export function createPrototypeProxy<T extends object>(
-  flag: symbol,
-  ctor: new (...args: any[]) => T,
-  handler: ProxyHandler<T>,
-): void {
-  if (Reflect.hasOwnProperty.call(ctor.prototype, flag)) {
-    return;
-  }
-  monkeypatch(flag, ctor.prototype, {});
-  const proxy = new Proxy(ctor.prototype, handler);
-  proxyIndex.set(ctor, ctor.prototype);
-  Object.setPrototypeOf(ctor, proxy);
-}
-
-export function restorePrototypeProxy<T extends object>(
-  flag: symbol,
-  ctor: new (...args: any[]) => T,
-) {
-  if (!Reflect.hasOwnProperty.call(ctor, flag)) {
-    return;
-  }
-  unmonkeypatch(flag, ctor);
-  const proto = proxyIndex.get(ctor);
-  if (proto) {
-    Object.setPrototypeOf(ctor, proto);
-  }
-  proxyIndex.delete(ctor);
 }

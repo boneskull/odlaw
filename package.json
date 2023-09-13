@@ -39,11 +39,10 @@
     "prepare": "run-p husky-install rebuild",
     "pretest:e2e": "run-s build",
     "rebuild": "run-s clean build",
-    "test": "run-p test:e2e test:types",
+    "test": "run-p test:mocha test:types",
     "test:ci": "run-s test:e2e test:types",
-    "test:e2e": "mocha --timeout 20s --slow 10s \"test/e2e/**/*.spec.ts\"",
-    "test:types": "tsd",
-    "test:unit": "mocha \"test/unit/**/*.spec.ts\""
+    "test:mocha": "mocha --timeout 20s --slow 10s \"test/**/*.spec.ts\"",
+    "test:types": "tsd"
   },
   "peerDependencies": {
     "zod": "^3.22.0"
