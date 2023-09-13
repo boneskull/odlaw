@@ -47,7 +47,7 @@ describe('odlaw', function () {
       expect(z.object({}), 'to be a', z.ZodObject);
     });
 
-    it('sohuld allow the creation of an unsupported ZodOptional', function () {
+    it('should allow the creation of an unsupported ZodOptional', function () {
       expect(z.bigint().optional(), 'to be a', z.ZodOptional);
     });
 

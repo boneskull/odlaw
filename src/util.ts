@@ -19,3 +19,9 @@ export function expandDeep<T>(obj: T): ExpandDeep<T> {
 }
 
 export type NonEmptyString<T extends string> = '' extends T ? never : T;
+
+export type Compact<T> = {
+  [K in keyof Required<T> as Pick<T, K> extends Required<Pick<T, K>>
+    ? K
+    : never]: T[K];
+};

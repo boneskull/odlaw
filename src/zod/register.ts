@@ -21,6 +21,7 @@ export const SUPPORTED_OPTION_ZOD_TYPES = new Set([
   z.ZodNumber,
   z.ZodEnum,
   z.ZodOptional,
+  z.ZodDefault,
 ] as const);
 
 const SUPPORTED_COMMAND_ZOD_TYPES = [z.ZodObject] as const;

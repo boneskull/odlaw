@@ -1,12 +1,7 @@
 import unexpected from 'unexpected';
 import zod from 'zod';
 
-import {
-  OdSupportedType,
-  getYargsType,
-  register,
-  unregister,
-} from '../../src/zod';
+import {getYargsType, register, unregister} from '../../src/zod';
 import {SUPPORTED_OPTION_ZOD_TYPES} from '../../src/zod/register';
 
 const expect = unexpected.clone();
@@ -50,7 +45,7 @@ describe('option handling', function () {
     describe('supported types', function () {
       for (const ctor of SUPPORTED_OPTION_ZOD_TYPES) {
         describe(ctor.name, function () {
-          let schema: OdSupportedType;
+          let schema: zod.ZodTypeAny & {_yargsType: any};
 
           beforeEach(function () {
             schema =
