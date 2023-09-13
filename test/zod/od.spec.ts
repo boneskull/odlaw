@@ -38,7 +38,10 @@ describe('od', function () {
           defaultDescription: 'cows',
         }),
         'to satisfy',
-        {_odInnerType: {_yargsType: {type: 'boolean'}}},
+        {
+          _yargsType: {type: 'boolean'},
+          _def: {odOptions: {defaultDescription: 'cows'}},
+        },
       );
     });
   });
@@ -91,6 +94,7 @@ describe('od', function () {
 
     describe('when called on an unsupported type', function () {
       it('should throw', function () {
+        // @ts-expect-error - no such method
         expect(() => z.date()._toYargsOptions(), 'to throw a', TypeError);
       });
     });

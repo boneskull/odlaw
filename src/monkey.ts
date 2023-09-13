@@ -96,10 +96,10 @@ export function createPrototypeProxy<T extends object>(
   ctor: new (...args: any[]) => T,
   handler: ProxyHandler<T>,
 ): void {
-  if (Reflect.hasOwnProperty.call(ctor, flag)) {
+  if (Reflect.hasOwnProperty.call(ctor.prototype, flag)) {
     return;
   }
-  monkeypatch(flag, ctor, {});
+  monkeypatch(flag, ctor.prototype, {});
   const proxy = new Proxy(ctor.prototype, handler);
   proxyIndex.set(ctor, ctor.prototype);
   Object.setPrototypeOf(ctor, proxy);

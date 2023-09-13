@@ -8,20 +8,24 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import type {Exact} from 'type-fest';
+import type * as y from 'yargs';
 import type z from 'zod';
 import type {ExpandDeep} from '../util';
-import type {OdCommand} from './od-command';
+import {OdCommandOptions, OdMiddleware, createOdCommand} from './od-command';
 import type {
-  DynamicOdOptions,
-  OdOptionsType,
+  OdOptions,
   OdSupportedType,
   ShapeToOdOptions,
   YargsType,
-  YargsifyOdOptions,
+  Yargsify,
 } from './od-option';
 import type {kOd} from './register';
 
 declare module 'zod' {
+  interface ZodTypeDef {
+    odOptions?: OdOptions;
+  }
+
   interface ZodBoolean {
     /**
      * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
@@ -39,51 +43,45 @@ declare module 'zod' {
      * Set options on a `ZodType` via object instead of fluent interface
      * @param config Options object
      */
-    option<DOO extends Exact<DynamicOdOptions, DOO>>(
-      config?: DOO,
-    ): OdOptionsType<this, DOO>;
+    option<DOO extends Exact<OdOptions, DOO>>(config?: DOO): this;
 
     /**
      * Set Yargs' `global` flag for this `ZodType`
      */
-    global(): OdOptionsType<this, {global: true}>;
+    global(): this;
 
     /**
      * Set Yargs' `hidden` flag for this `ZodType`
      */
-    hidden(): OdOptionsType<this, {hidden: true}>;
+    hidden(): this;
 
     /**
      * Set Yargs' `deprecated` flag (or message) for this `ZodType`
      */
-    deprecated<M extends string | boolean>(
-      message?: M,
-    ): OdOptionsType<this, {deprecated: M}>;
+    deprecated<M extends string | boolean>(message?: M): this;
 
     /**
      * Set Yargs' `defaultDescription` `string` for this `ZodType`
      */
-    defaultDescription<M extends string>(
-      defaultDescription?: M,
-    ): OdOptionsType<this, {defaultDescription: M}>;
+    defaultDescription<M extends string>(defaultDescription?: M): this;
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
      * @param group Display group
      */
-    group<G extends string>(group: G): OdOptionsType<this, {group: G}>;
+    group<G extends string>(group: G): this;
 
     /**
      * Change this `ZodType` into Yargs' "count" type
      */
-    count(): OdOptionsType<this, {count: true}>;
+    count(): this;
 
     /**
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
      */
-    demandOption(): OdOptionsType<this, {demandOption: true}>;
+    demandOption(): this;
 
     /**
      * Set Yargs' `nargs` value for this `ZodType` (i.e., "number of expected
@@ -93,23 +91,21 @@ declare module 'zod' {
      * `number` Yargs types, `0` for `boolean` types, and `Infinity` for array types.
      * @param nargs
      */
-    nargs(nargs: number): OdOptionsType<this, {nargs: number}>;
+    nargs(nargs: number): this;
 
     /**
      * Set Yargs' `normalize` flag for this `ZodType`. Only applies to `string`
      * yargs types (`ZodString`, `ZodArray<ZodString>`, `ZodEnum`)
      */
 
-    normalize(): OdOptionsType<this, {normalize: true}>;
+    normalize(): this;
 
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
      * @param alias Alias or aliases
      */
-    alias<A extends string | readonly string[]>(
-      alias: A,
-    ): OdOptionsType<this, {alias: A}>;
+    alias<A extends string | readonly string[]>(alias: A): this;
 
     /**
      * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
@@ -120,9 +116,7 @@ declare module 'zod' {
      *
      * @internal
      */
-    _toYargsOptions(): ExpandDeep<
-      YargsifyOdOptions<this, {demandOption?: boolean}>
-    >;
+    _toYargsOptions(): ExpandDeep<Yargsify<this, {demandOption?: boolean}>>;
   }
 
   interface ZodString {
@@ -142,51 +136,45 @@ declare module 'zod' {
      * Set options on a `ZodType` via object instead of fluent interface
      * @param config Options object
      */
-    option<DOO extends Exact<DynamicOdOptions, DOO>>(
-      config?: DOO,
-    ): OdOptionsType<this, DOO>;
+    option<DOO extends Exact<OdOptions, DOO>>(config?: DOO): this;
 
     /**
      * Set Yargs' `global` flag for this `ZodType`
      */
-    global(): OdOptionsType<this, {global: true}>;
+    global(): this;
 
     /**
      * Set Yargs' `hidden` flag for this `ZodType`
      */
-    hidden(): OdOptionsType<this, {hidden: true}>;
+    hidden(): this;
 
     /**
      * Set Yargs' `deprecated` flag (or message) for this `ZodType`
      */
-    deprecated<M extends string | boolean>(
-      message?: M,
-    ): OdOptionsType<this, {deprecated: M}>;
+    deprecated<M extends string | boolean>(message?: M): this;
 
     /**
      * Set Yargs' `defaultDescription` `string` for this `ZodType`
      */
-    defaultDescription<M extends string>(
-      defaultDescription?: M,
-    ): OdOptionsType<this, {defaultDescription: M}>;
+    defaultDescription<M extends string>(defaultDescription?: M): this;
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
      * @param group Display group
      */
-    group<G extends string>(group: G): OdOptionsType<this, {group: G}>;
+    group<G extends string>(group: G): this;
 
     /**
      * Change this `ZodType` into Yargs' "count" type
      */
-    count(): OdOptionsType<this, {count: true}>;
+    count(): this;
 
     /**
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
      */
-    demandOption(): OdOptionsType<this, {demandOption: true}>;
+    demandOption(): this;
 
     /**
      * Set Yargs' `nargs` value for this `ZodType` (i.e., "number of expected
@@ -196,23 +184,21 @@ declare module 'zod' {
      * `number` Yargs types, `0` for `boolean` types, and `Infinity` for array types.
      * @param nargs
      */
-    nargs(nargs: number): OdOptionsType<this, {nargs: number}>;
+    nargs(nargs: number): this;
 
     /**
      * Set Yargs' `normalize` flag for this `ZodType`. Only applies to `string`
      * yargs types (`ZodString`, `ZodArray<ZodString>`, `ZodEnum`)
      */
 
-    normalize(): OdOptionsType<this, {normalize: true}>;
+    normalize(): this;
 
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
      * @param alias Alias or aliases
      */
-    alias<A extends string | readonly string[]>(
-      alias: A,
-    ): OdOptionsType<this, {alias: A}>;
+    alias<A extends string | readonly string[]>(alias: A): this;
 
     /**
      * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
@@ -223,9 +209,7 @@ declare module 'zod' {
      *
      * @internal
      */
-    _toYargsOptions(): ExpandDeep<
-      YargsifyOdOptions<this, {demandOption?: boolean}>
-    >;
+    _toYargsOptions(): ExpandDeep<Yargsify<this, {demandOption?: boolean}>>;
   }
 
   interface ZodNumber {
@@ -239,57 +223,51 @@ declare module 'zod' {
      * The equivalent yargs type, if this `ZodType` subclass is supported.
      * @internal
      */
-    _yargsType: YargsType<boolean>;
+    _yargsType: YargsType<number>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
      * @param config Options object
      */
-    option<DOO extends Exact<DynamicOdOptions, DOO>>(
-      config?: DOO,
-    ): OdOptionsType<this, DOO>;
+    option<DOO extends Exact<OdOptions, DOO>>(config?: DOO): this;
 
     /**
      * Set Yargs' `global` flag for this `ZodType`
      */
-    global(): OdOptionsType<this, {global: true}>;
+    global(): this;
 
     /**
      * Set Yargs' `hidden` flag for this `ZodType`
      */
-    hidden(): OdOptionsType<this, {hidden: true}>;
+    hidden(): this;
 
     /**
      * Set Yargs' `deprecated` flag (or message) for this `ZodType`
      */
-    deprecated<M extends string | boolean>(
-      message?: M,
-    ): OdOptionsType<this, {deprecated: M}>;
+    deprecated<M extends string | boolean>(message?: M): this;
 
     /**
      * Set Yargs' `defaultDescription` `string` for this `ZodType`
      */
-    defaultDescription<M extends string>(
-      defaultDescription?: M,
-    ): OdOptionsType<this, {defaultDescription: M}>;
+    defaultDescription<M extends string>(defaultDescription?: M): this;
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
      * @param group Display group
      */
-    group<G extends string>(group: G): OdOptionsType<this, {group: G}>;
+    group<G extends string>(group: G): this;
 
     /**
      * Change this `ZodType` into Yargs' "count" type
      */
-    count(): OdOptionsType<this, {count: true}>;
+    count(): this;
 
     /**
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
      */
-    demandOption(): OdOptionsType<this, {demandOption: true}>;
+    demandOption(): this;
 
     /**
      * Set Yargs' `nargs` value for this `ZodType` (i.e., "number of expected
@@ -299,23 +277,21 @@ declare module 'zod' {
      * `number` Yargs types, `0` for `boolean` types, and `Infinity` for array types.
      * @param nargs
      */
-    nargs(nargs: number): OdOptionsType<this, {nargs: number}>;
+    nargs(nargs: number): this;
 
     /**
      * Set Yargs' `normalize` flag for this `ZodType`. Only applies to `string`
      * yargs types (`ZodString`, `ZodArray<ZodString>`, `ZodEnum`)
      */
 
-    normalize(): OdOptionsType<this, {normalize: true}>;
+    normalize(): this;
 
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
      * @param alias Alias or aliases
      */
-    alias<A extends string | readonly string[]>(
-      alias: A,
-    ): OdOptionsType<this, {alias: A}>;
+    alias<A extends string | readonly string[]>(alias: A): this;
 
     /**
      * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
@@ -326,9 +302,7 @@ declare module 'zod' {
      *
      * @internal
      */
-    _toYargsOptions(): ExpandDeep<
-      YargsifyOdOptions<this, {demandOption?: boolean}>
-    >;
+    _toYargsOptions(): ExpandDeep<Yargsify<this, {demandOption?: boolean}>>;
   }
 
   interface ZodEnum<T extends [string, ...string[]]> {
@@ -348,51 +322,45 @@ declare module 'zod' {
      * Set options on a `ZodType` via object instead of fluent interface
      * @param config Options object
      */
-    option<DOO extends Exact<DynamicOdOptions, DOO>>(
-      config?: DOO,
-    ): OdOptionsType<this, DOO>;
+    option<DOO extends Exact<OdOptions, DOO>>(config?: DOO): this;
 
     /**
      * Set Yargs' `global` flag for this `ZodType`
      */
-    global(): OdOptionsType<this, {global: true}>;
+    global(): this;
 
     /**
      * Set Yargs' `hidden` flag for this `ZodType`
      */
-    hidden(): OdOptionsType<this, {hidden: true}>;
+    hidden(): this;
 
     /**
      * Set Yargs' `deprecated` flag (or message) for this `ZodType`
      */
-    deprecated<M extends string | boolean>(
-      message?: M,
-    ): OdOptionsType<this, {deprecated: M}>;
+    deprecated<M extends string | boolean>(message?: M): this;
 
     /**
      * Set Yargs' `defaultDescription` `string` for this `ZodType`
      */
-    defaultDescription<M extends string>(
-      defaultDescription?: M,
-    ): OdOptionsType<this, {defaultDescription: M}>;
+    defaultDescription<M extends string>(defaultDescription?: M): this;
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
      * @param group Display group
      */
-    group<G extends string>(group: G): OdOptionsType<this, {group: G}>;
+    group<G extends string>(group: G): this;
 
     /**
      * Change this `ZodType` into Yargs' "count" type
      */
-    count(): OdOptionsType<this, {count: true}>;
+    count(): this;
 
     /**
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
      */
-    demandOption(): OdOptionsType<this, {demandOption: true}>;
+    demandOption(): this;
 
     /**
      * Set Yargs' `nargs` value for this `ZodType` (i.e., "number of expected
@@ -402,23 +370,21 @@ declare module 'zod' {
      * `number` Yargs types, `0` for `boolean` types, and `Infinity` for array types.
      * @param nargs
      */
-    nargs(nargs: number): OdOptionsType<this, {nargs: number}>;
+    nargs(nargs: number): this;
 
     /**
      * Set Yargs' `normalize` flag for this `ZodType`. Only applies to `string`
      * yargs types (`ZodString`, `ZodArray<ZodString>`, `ZodEnum`)
      */
 
-    normalize(): OdOptionsType<this, {normalize: true}>;
+    normalize(): this;
 
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
      * @param alias Alias or aliases
      */
-    alias<A extends string | readonly string[]>(
-      alias: A,
-    ): OdOptionsType<this, {alias: A}>;
+    alias<A extends string | readonly string[]>(alias: A): this;
 
     /**
      * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
@@ -429,9 +395,7 @@ declare module 'zod' {
      *
      * @internal
      */
-    _toYargsOptions(): ExpandDeep<
-      YargsifyOdOptions<this, {demandOption?: boolean}>
-    >;
+    _toYargsOptions(): ExpandDeep<Yargsify<this, {demandOption?: boolean}>>;
   }
 
   interface ZodArray<T extends z.ZodTypeAny> {
@@ -451,51 +415,45 @@ declare module 'zod' {
      * Set options on a `ZodType` via object instead of fluent interface
      * @param config Options object
      */
-    option<DOO extends Exact<DynamicOdOptions, DOO>>(
-      config?: DOO,
-    ): OdOptionsType<this, DOO>;
+    option<DOO extends Exact<OdOptions, DOO>>(config?: DOO): this;
 
     /**
      * Set Yargs' `global` flag for this `ZodType`
      */
-    global(): OdOptionsType<this, {global: true}>;
+    global(): this;
 
     /**
      * Set Yargs' `hidden` flag for this `ZodType`
      */
-    hidden(): OdOptionsType<this, {hidden: true}>;
+    hidden(): this;
 
     /**
      * Set Yargs' `deprecated` flag (or message) for this `ZodType`
      */
-    deprecated<M extends string | boolean>(
-      message?: M,
-    ): OdOptionsType<this, {deprecated: M}>;
+    deprecated<M extends string | boolean>(message?: M): this;
 
     /**
      * Set Yargs' `defaultDescription` `string` for this `ZodType`
      */
-    defaultDescription<M extends string>(
-      defaultDescription?: M,
-    ): OdOptionsType<this, {defaultDescription: M}>;
+    defaultDescription<M extends string>(defaultDescription?: M): this;
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
      * @param group Display group
      */
-    group<G extends string>(group: G): OdOptionsType<this, {group: G}>;
+    group<G extends string>(group: G): this;
 
     /**
      * Change this `ZodType` into Yargs' "count" type
      */
-    count(): OdOptionsType<this, {count: true}>;
+    count(): this;
 
     /**
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
      */
-    demandOption(): OdOptionsType<this, {demandOption: true}>;
+    demandOption(): this;
 
     /**
      * Set Yargs' `nargs` value for this `ZodType` (i.e., "number of expected
@@ -505,23 +463,21 @@ declare module 'zod' {
      * `number` Yargs types, `0` for `boolean` types, and `Infinity` for array types.
      * @param nargs
      */
-    nargs(nargs: number): OdOptionsType<this, {nargs: number}>;
+    nargs(nargs: number): this;
 
     /**
      * Set Yargs' `normalize` flag for this `ZodType`. Only applies to `string`
      * yargs types (`ZodString`, `ZodArray<ZodString>`, `ZodEnum`)
      */
 
-    normalize(): OdOptionsType<this, {normalize: true}>;
+    normalize(): this;
 
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
      * @param alias Alias or aliases
      */
-    alias<A extends string | readonly string[]>(
-      alias: A,
-    ): OdOptionsType<this, {alias: A}>;
+    alias<A extends string | readonly string[]>(alias: A): this;
 
     /**
      * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
@@ -533,7 +489,7 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): this extends OdSupportedType
-      ? ExpandDeep<YargsifyOdOptions<this, {demandOption?: boolean}>>
+      ? ExpandDeep<Yargsify<this, {demandOption?: boolean}>>
       : never;
   }
 
@@ -554,51 +510,45 @@ declare module 'zod' {
      * Set options on a `ZodType` via object instead of fluent interface
      * @param config Options object
      */
-    option<DOO extends Exact<DynamicOdOptions, DOO>>(
-      config?: DOO,
-    ): OdOptionsType<this, DOO>;
+    option<DOO extends Exact<OdOptions, DOO>>(config?: DOO): this;
 
     /**
      * Set Yargs' `global` flag for this `ZodType`
      */
-    global(): OdOptionsType<this, {global: true}>;
+    global(): this;
 
     /**
      * Set Yargs' `hidden` flag for this `ZodType`
      */
-    hidden(): OdOptionsType<this, {hidden: true}>;
+    hidden(): this;
 
     /**
      * Set Yargs' `deprecated` flag (or message) for this `ZodType`
      */
-    deprecated<M extends string | boolean>(
-      message?: M,
-    ): OdOptionsType<this, {deprecated: M}>;
+    deprecated<M extends string | boolean>(message?: M): this;
 
     /**
      * Set Yargs' `defaultDescription` `string` for this `ZodType`
      */
-    defaultDescription<M extends string>(
-      defaultDescription?: M,
-    ): OdOptionsType<this, {defaultDescription: M}>;
+    defaultDescription<M extends string>(defaultDescription?: M): this;
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
      * @param group Display group
      */
-    group<G extends string>(group: G): OdOptionsType<this, {group: G}>;
+    group<G extends string>(group: G): this;
 
     /**
      * Change this `ZodType` into Yargs' "count" type
      */
-    count(): OdOptionsType<this, {count: true}>;
+    count(): this;
 
     /**
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
      */
-    demandOption(): OdOptionsType<this, {demandOption: true}>;
+    demandOption(): this;
 
     /**
      * Set Yargs' `nargs` value for this `ZodType` (i.e., "number of expected
@@ -608,23 +558,21 @@ declare module 'zod' {
      * `number` Yargs types, `0` for `boolean` types, and `Infinity` for array types.
      * @param nargs
      */
-    nargs(nargs: number): OdOptionsType<this, {nargs: number}>;
+    nargs(nargs: number): this;
 
     /**
      * Set Yargs' `normalize` flag for this `ZodType`. Only applies to `string`
      * yargs types (`ZodString`, `ZodArray<ZodString>`, `ZodEnum`)
      */
 
-    normalize(): OdOptionsType<this, {normalize: true}>;
+    normalize(): this;
 
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
      * @param alias Alias or aliases
      */
-    alias<A extends string | readonly string[]>(
-      alias: A,
-    ): OdOptionsType<this, {alias: A}>;
+    alias<A extends string | readonly string[]>(alias: A): this;
 
     /**
      * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
@@ -635,9 +583,15 @@ declare module 'zod' {
      *
      * @internal
      */
-    _toYargsOptions(): ExpandDeep<
-      YargsifyOdOptions<T, {demandOption?: boolean}>
-    >;
+    _toYargsOptions(): ExpandDeep<Yargsify<T, {demandOption?: boolean}>>;
+  }
+
+  interface ZodObjectDef<
+    T extends z.ZodRawShape = z.ZodRawShape,
+    UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+    Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+  > {
+    odCommandOptions: OdCommandOptions<T>;
   }
 
   /**
@@ -653,13 +607,25 @@ declare module 'zod' {
     command(
       command: string | readonly string[],
       description: string,
-    ): OdCommand<
-      ZodObject<
-        {[K in keyof T]: z.ZodOptional<T[K]>},
-        this['_def']['unknownKeys'],
-        this['_def']['catchall']
-      >,
-      {command: typeof command}
+    ): ZodObject<
+      {[K in keyof T]: z.ZodOptional<T[K]>},
+      this['_def']['unknownKeys'],
+      this['_def']['catchall']
+    >;
+
+    middlewares(
+      middlewares: OdMiddleware<T>[],
+    ): ZodObject<
+      {[K in keyof T]: z.ZodOptional<T[K]>},
+      this['_def']['unknownKeys'],
+      this['_def']['catchall']
+    >;
+    middlewares(
+      ...middlewares: OdMiddleware<T>[]
+    ): ZodObject<
+      {[K in keyof T]: z.ZodOptional<T[K]>},
+      this['_def']['unknownKeys'],
+      this['_def']['catchall']
     >;
 
     /**
@@ -671,8 +637,10 @@ declare module 'zod' {
      *
      * @internal
      */
-    _toYargsOptionsRecord(): ShapeToOdOptions<this['shape']>;
+    _toYargsOptionsRecord(): ShapeToOdOptions<T>;
+
+    _toYargsCommand<Y>(argv: y.Argv<Y>): y.Argv<Y>;
   }
 
-  const command: typeof OdCommand.create;
+  const command: typeof createOdCommand;
 }

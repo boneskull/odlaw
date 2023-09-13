@@ -15,7 +15,7 @@ import {
   restorePrototypeProxy,
   unmonkeypatch,
 } from '../monkey';
-import {OdCommand, OdCommandZodType} from './od-command';
+import {OdCommandZodType, createOdCommand} from './od-command';
 import {OdOptionZodType} from './od-option';
 export const kOd: unique symbol = Symbol('kOd');
 
@@ -25,19 +25,36 @@ const SUPPORTED_OPTION_ZOD_TYPES = [
   z.ZodBoolean,
   z.ZodNumber,
   z.ZodEnum,
+  z.ZodOptional,
 ] as const;
 
-const ZODTYPE_PROXY_HANDLERS = new Map<
-  new (...args: any[]) => any,
-  ProxyHandler<object>
->([
+function commonConstructHandler(
+  target: new (def: z.ZodAnyDef) => z.ZodTypeAny,
+  [def]: [z.ZodAnyDef],
+): z.ZodTypeAny {
+  let newDef = 'odOptions' in def ? def : Object.assign(def, {odOptions: {}});
+  newDef =
+    'odCommandOptions' in def
+      ? def
+      : Object.assign(def, {odCommandOptions: {}});
+  return Reflect.construct(target, [newDef]);
+}
+
+function commonGetHandler(target: z.ZodTypeAny, prop: PropertyKey) {
+  const value = Reflect.get(target, prop);
+  if (prop === 'description' && !value) {
+    return Reflect.get(target, '_def')?.odOptions?.describe;
+  }
+  return value;
+}
+
+const ZODTYPE_PROXY_HANDLERS = new Map<any, ProxyHandler<object>>([
   [
     z.ZodArray,
     {
       get(target: z.ZodArray<any>, prop: string | symbol) {
-        target; // ?
         const innerType = Reflect.get(target, '_def').type;
-        if (prop in OdOptionZodType.prototype) {
+        if (Reflect.hasOwnProperty.call(OdOptionZodType, prop)) {
           if (
             SUPPORTED_OPTION_ZOD_TYPES.some((ctor) => innerType instanceof ctor)
           ) {
@@ -45,6 +62,11 @@ const ZODTYPE_PROXY_HANDLERS = new Map<
           }
           throw new TypeError(
             `Unsupported array type: ${innerType._def.typeName}`,
+          );
+        } else if (prop === 'description') {
+          return (
+            Reflect.get(target, 'description') ||
+            Reflect.get(target, '_def')?.odOptions?.describe
           );
         }
         return Reflect.get(target, prop);
@@ -55,12 +77,17 @@ const ZODTYPE_PROXY_HANDLERS = new Map<
     z.ZodOptional,
     {
       get(target: z.ZodOptional<any>, prop: string | symbol) {
-        if (prop in OdOptionZodType.prototype) {
+        if (Reflect.hasOwnProperty.call(OdOptionZodType, prop)) {
           const innerType = Reflect.get(target, '_def').innerType;
           if (
             SUPPORTED_OPTION_ZOD_TYPES.some((ctor) => innerType instanceof ctor)
           ) {
             return Reflect.get(target, prop);
+          } else if (prop === 'description') {
+            return (
+              Reflect.get(target, 'description') ||
+              Reflect.get(target, '_def')?.odOptions?.describe
+            );
           }
           throw new TypeError(
             `Unsupported array type: ${innerType._def.typeName}`,
@@ -70,6 +97,11 @@ const ZODTYPE_PROXY_HANDLERS = new Map<
       },
     },
   ],
+  [z.ZodBoolean, {get: commonGetHandler}],
+  [z.ZodNumber, {get: commonGetHandler}],
+  [z.ZodString, {get: commonGetHandler}],
+  [z.ZodEnum, {get: commonGetHandler}],
+  [z.ZodType, {construct: commonConstructHandler}],
 ]);
 
 const SUPPORTED_COMMAND_ZOD_TYPES = [z.ZodObject] as const;
@@ -83,13 +115,13 @@ export function register(zod: typeof z) {
   }
 
   for (const ctor of SUPPORTED_OPTION_ZOD_TYPES) {
-    monkeypatch(kOd, ctor.prototype, OdOptionZodType.prototype);
+    monkeypatch(kOd, ctor.prototype, OdOptionZodType);
   }
   for (const ctor of SUPPORTED_COMMAND_ZOD_TYPES) {
-    monkeypatch(kOd, ctor.prototype, OdCommandZodType.prototype);
+    monkeypatch(kOd, ctor.prototype, OdCommandZodType);
   }
 
-  monkeypatch(kOd, zod, {command: OdCommand.create});
+  monkeypatch(kOd, zod, {command: createOdCommand});
 
   for (const [ctor, handler] of ZODTYPE_PROXY_HANDLERS) {
     createPrototypeProxy(kOd, ctor, handler);

@@ -1,8 +1,7 @@
-import {Exact} from 'type-fest';
+import {PickIndexSignature} from 'type-fest';
 import type * as y from 'yargs';
 import z from 'zod';
 import type {ExpandDeep} from '../util';
-import {OdOption} from './od';
 
 export type OdSupportedBaseType =
   | z.ZodBoolean
@@ -56,7 +55,7 @@ export type InputToYargsType<Input> = Input extends boolean
  *    `strict` setting.  A `ZodObject` is how we get a set of options, after
  *    all.
  */
-export type DynamicOdOptions = Pick<
+export type OdOptions = Pick<
   y.Options,
   | 'alias'
   | 'count'
@@ -71,38 +70,22 @@ export type DynamicOdOptions = Pick<
   | 'normalize'
 >;
 
-export type ShapeToOdOptions<S extends z.ZodRawShape> = {
-  [K in keyof S]: S[K] extends z.ZodOptional<
-    infer T extends OdSupportedBaseType
-  >
-    ? YargsifyOdOptions<T, {demandOption: false}>
-    : S[K] extends OdSupportedBaseType
-    ? YargsifyOdOptions<S[K], {demandOption: true}>
-    : never;
-};
+export type IsSupported<T extends z.ZodTypeAny> =
+  T['_def']['typeName'] extends OdSupportedTypeName ? T : never;
 
-export type ZodObjectToYargsOptionsRecord<T extends z.AnyZodObject> =
-  ShapeToOdOptions<T['shape']>;
-
-/**
- * Merges some {@linkcode DynamicOdOptions} with {@linkcode OdOptions} (from {@linkcode OdOption._def.odOptions}).
- * @typeParam OO - The {@linkcode OdOptions} to merge "into"
- * @typeParam DOO - The {@linkcode DynamicOdOptions} to merge "from"; **must not include extra properties**.
- */
-export type MergeOdOpts<
-  OO extends OdOptions<any>,
-  DOO extends Exact<DynamicOdOptions, DOO>,
-> = import('type-fest/source/merge').SimpleMerge<OO, DOO>;
-
-/**
- * Option config from {@linkcode YOptions yargs.Options} which cannot be expressed via Zod itself
- */
-export type OdOptions<
-  T extends OdSupportedType,
-  DOO extends Exact<DynamicOdOptions, DOO> = DynamicOdOptions,
-> = T['_input'] extends OdInput
-  ? MergeOdOpts<T['_yargsType'], DOO>
-  : T['_yargsType'];
+export type ShapeToOdOptions<S extends z.ZodRawShape> =
+  // if this is true then `S` is `ZodRawShape` proper and does not "extend" it.
+  // this means no options are defined, so we don't care what someone does with
+  // it later in e.g., middleware.
+  PickIndexSignature<S> extends S
+    ? Record<string, any>
+    : {
+        [K in keyof S]: S[K] extends z.ZodOptional<IsSupported<infer T>>
+          ? Yargsify<T, {demandOption: false}>
+          : S[K] extends IsSupported<S[K]>
+          ? Yargsify<S[K], {demandOption: true}>
+          : never;
+      };
 
 /**
  * The equivalent of {@linkcode y.Options.type} based on the `Input` of `ZodType`.
@@ -112,96 +95,74 @@ export interface YargsType<SomeType> {
   type: InputToYargsType<NonNullable<SomeType>>;
 }
 
-export type OdOptionsType<
+export type Yargsify<
   T extends z.ZodTypeAny,
-  DOO extends Exact<DynamicOdOptions, DOO>,
-> = T extends OdOption<any>
-  ? OdOption<
-      T['_odInnerType'],
-      ExpandDeep<MergeOdOpts<T['_def']['odOptions'], DOO>>
-    >
-  : T['_def']['typeName'] extends OdSupportedTypeName
-  ? OdOption<T, ExpandDeep<DOO>>
-  : never;
-
-export type YargsifyOdOptions<
-  T extends z.ZodTypeAny,
-  DOO extends DynamicOdOptions,
-> = ExpandDeep<
-  T extends OdOption<any>
-    ? T['_odInnerType']['_yargsType'] & T['_def']['odOptions'] & DOO
-    : T extends OdSupportedType
-    ? T['_yargsType'] & DOO
-    : never
->;
+  DOO extends OdOptions,
+> = ExpandDeep<T extends {_yargsType: infer U} ? U & DOO : never>;
 
 /**
- * This class' `prototype` is grafted onto {@linkcode z.ZodType} and represents
- * everything in the module augmentation of {@linkcode z.ZodType}.
+ * This object is grafted onto supported {@linkcode z.ZodType} subclasses.
  */
-export abstract class OdOptionZodType {
+export const OdOptionZodType = {
   alias(this: OdSupportedType, alias: string | string[]) {
     return this.option({alias});
-  }
+  },
 
   global(this: OdSupportedType) {
     return this.option({global: true});
-  }
+  },
 
   hidden(this: OdSupportedType) {
     return this.option({hidden: true});
-  }
+  },
 
   defaultDescription(this: OdSupportedType, defaultDescription: string) {
     return this.option({defaultDescription});
-  }
+  },
 
   group(this: OdSupportedType, group: string) {
     return this.option({group});
-  }
+  },
 
   count(this: OdSupportedType) {
     return this.option({count: true});
-  }
+  },
 
   normalize(this: OdSupportedType) {
     return this.option({normalize: true});
-  }
+  },
 
   nargs(this: OdSupportedType, nargs: number) {
     return this.option({nargs});
-  }
+  },
 
   demandOption(this: OdSupportedType) {
     return this.option({demandOption: true});
-  }
-  option(this: OdSupportedType, config?: DynamicOdOptions) {
-    return this instanceof OdOption
-      ? this._cloneWith(config)
-      : new OdOption({odOptions: {...config}, innerType: this});
-  }
+  },
+
+  option(this: OdSupportedType, config?: OdOptions): OdSupportedType {
+    const This = (this as any).constructor;
+    return new This({
+      ...this._def,
+      odOptions: {...this._def.odOptions, ...config},
+    }) as any;
+  },
+
   _toYargsOptions(this: OdSupportedType): y.Options {
-    if (this instanceof OdOption) {
-      return {
-        ...this._yargsType,
-        ...this._def.odOptions,
-        demandOption: this._def.odOptions.demandOption === true,
-        describe: this.description,
-      };
-    }
     return {
       ...this._yargsType,
-      describe: this.description,
+      ...this._def.odOptions,
+      describe: this.description || this._def.odOptions?.describe,
     };
-  }
-}
+  },
+};
 
 /**
  * Returns the equivalent Yargs type for a given `ZodType`.
  *
  * This cannot be a `get _yargsType` on the class because it _must_ be `configurable`.
  */
-Object.defineProperties(OdOptionZodType.prototype, {
+Object.defineProperties(OdOptionZodType, {
   _yargsType: {
     get() {
       return getYargsType(this);
@@ -214,9 +175,6 @@ Object.defineProperties(OdOptionZodType.prototype, {
 export function getYargsType<T extends z.ZodTypeAny>(
   schema: T,
 ): {type: y.Options['type']} | undefined {
-  if (schema instanceof OdOption) {
-    return getYargsType(schema._odInnerType);
-  }
   switch (schema._def?.typeName) {
     case z.ZodFirstPartyTypeKind.ZodBoolean:
       return {type: 'boolean'};
