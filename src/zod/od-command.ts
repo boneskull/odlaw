@@ -9,6 +9,8 @@
 import type * as y from 'yargs';
 import z from 'zod';
 import {ShapeToOdOptions} from './od-option';
+import {createPositional, isPositionalTuple} from './od-positional';
+import {getYargsTypeForPositional} from './yargs';
 
 /**
  * Equivalent to a `yargs` middleware function based on the shape of a
@@ -118,20 +120,53 @@ function middlewares(
 export const OdCommandZodType = {
   command: createOdCommand,
 
-  _toYargsCommand<Y>(this: z.AnyZodObject, argv: y.Argv<Y>) {
+  _toYargsCommand<
+    Y,
+    S extends z.ZodRawShape,
+    T extends z.ZodObject<S, any, any>,
+  >(this: T, argv: y.Argv<Y>) {
     const {command, handler, middlewares, deprecated} =
       this._def.odCommandOptions ?? {};
     const description =
       this._def.description ?? this._def.odCommandOptions?.describe ?? '';
     const options = this._toYargsOptionsRecord();
+
+    // type YOptions = y.Argv<
+    //   y.Omit<Y, keyof typeof options> & y.InferredOptionTypes<typeof options>
+    // >;
+    // const optionsBuilder = (argv: y.Argv<Y>) => argv.options( options);
+
     const yargsCommand = argv.command(
       command,
       description,
-      options,
+      (argv: y.Argv<Y>) => {
+        let newArgv = argv.options(options);
+        const posTuple = this.shape._;
+        if (isPositionalTuple(posTuple)) {
+          const opts = posTuple._def.odPositionalOptions ?? [];
+
+          if (opts.length !== posTuple.items.length) {
+            throw new ReferenceError('Positional options are out of sync');
+          }
+
+          for (let i = 0; i < posTuple.items.length; i++) {
+            const {name, ...rest} = opts[i];
+            const item = posTuple.items[i];
+            const type = getYargsTypeForPositional(item);
+            if (!type) {
+              throw new TypeError('Unsupported positional schema');
+            }
+            newArgv = newArgv.positional(name, {...type, ...rest});
+          }
+          return newArgv;
+        }
+        return newArgv;
+      },
       handler,
       middlewares,
       deprecated,
     );
+
     return yargsCommand;
   },
 
@@ -147,6 +182,8 @@ export const OdCommandZodType = {
     }
     return record;
   },
+
+  positional: createPositional,
 };
 
 export type OdCommandCreateParams<OCO extends OdCommandOptions<any>> =
@@ -308,3 +345,17 @@ function isOdCommandOptions(value: any): value is OdCommandOptions<any> {
     typeof value.command === 'string'
   );
 }
+
+export interface CommandDef<T extends z.ZodRawShape> extends z.ZodObjectDef<T> {
+  odCommandOptions: OdCommandOptions<T>;
+}
+
+export type OdCommand<
+  T extends z.ZodRawShape,
+  UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
+  Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+  Output = z.objectOutputType<T, Catchall, UnknownKeys>,
+  Input = z.objectInputType<T, Catchall, UnknownKeys>,
+> = z.ZodObject<T, UnknownKeys, Catchall, Output, Input> & {
+  _def: {odCommandOptions: OdCommandOptions<T>};
+};

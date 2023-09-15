@@ -24,7 +24,7 @@ export const SUPPORTED_OPTION_ZOD_TYPES = new Set([
   z.ZodDefault,
 ] as const);
 
-const SUPPORTED_COMMAND_ZOD_TYPES = [z.ZodObject] as const;
+const SUPPORTED_COMMAND_ZOD_TYPES = new Set([z.ZodObject] as const);
 
 /**
  * Monkeypatches Zod with yargs extensions

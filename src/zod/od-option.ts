@@ -1,34 +1,17 @@
-import type {Exact, PickIndexSignature} from 'type-fest';
+import type {Exact} from 'type-fest';
 import type * as y from 'yargs';
 import z from 'zod';
 import {Compact} from '../util';
+import {HasYargsType, YargsType, getYargsType} from './yargs';
 
-type OdSupportedType =
+type LooseSupportedOptionType =
   | z.ZodBoolean
   | z.ZodString
   | z.ZodNumber
   | z.ZodEnum<any>
-  | z.ZodArray<any>
+  | z.ZodArray<any, any>
   | z.ZodOptional<any>
   | z.ZodDefault<any>;
-
-/**
- * Various flavors of string types supported by Yargs
- */
-export type OdInputString =
-  | string
-  | [string, ...string[]]
-  | string[]
-  | readonly string[]
-  | readonly [string, ...string[]];
-
-export type InputToYargsType<Input> = Input extends boolean
-  ? 'boolean'
-  : Input extends number
-  ? 'number'
-  : Input extends OdInputString
-  ? 'string'
-  : never;
 
 /**
  * Subset of {@linkcode y.Options}
@@ -60,33 +43,15 @@ export type OdOptions = Pick<
   | 'normalize'
 >;
 
-export type IsSupported<T extends z.ZodTypeAny> = T extends {_yargsType: any}
-  ? true
-  : false;
-
-export type ShapeToOdOptions<S extends z.ZodRawShape> =
-  // if this is true then `S` is `ZodRawShape` proper and does not "extend" it.
-  // this means no options are defined, so we don't care what someone does with
-  // it later in e.g., middleware.
-  PickIndexSignature<S> extends S
-    ? Record<string, any>
-    : {
-        [K in keyof S]: Yargsify<S[K]>;
-      };
-
-/**
- * The equivalent of {@linkcode y.Options.type} based on the `Input` of `ZodType`.
- * @typeParam SomeType - The `Input` of a `ZodType`; could be literally anything, but only a few types are supported by Yargs; see
- */
-export interface YargsType<SomeType> {
-  type: InputToYargsType<NonNullable<SomeType>>;
-}
+export type ShapeToOdOptions<S extends z.ZodRawShape> = {
+  [K in keyof S]: Yargsify<S[K]>;
+};
 
 export type Yargsify<
   T extends z.ZodTypeAny,
   EOO extends Exact<OdOptions, EOO> | void = void,
-> = IsSupported<T> extends true
-  ? YargsType<T['_input']> & T['_def']['odOptions'] & EOO extends infer U
+> = HasYargsType<T> extends true
+  ? YargsType<z.input<T>> & T['_def']['odOptions'] & EOO extends infer U
     ? Compact<U>
     : never
   : never;
@@ -94,11 +59,11 @@ export type Yargsify<
 export type ExtendOdOptions<
   T extends z.ZodTypeAny,
   EOO extends Exact<OdOptions, EOO>,
-> = IsSupported<T> extends true
+> = HasYargsType<T> extends true
   ? T & {_def: T['_def'] & {odOptions: T['_def']['odOptions'] & EOO}}
   : never;
 
-function assertValidInnerType(t: z.ZodTypeAny | OdSupportedType) {
+function assertValidInnerType(t: z.ZodTypeAny) {
   if (!getYargsType(t)) {
     throw new TypeError(`Unsupported method call in ${t._def.typeName}`);
   }
@@ -109,45 +74,48 @@ function assertValidInnerType(t: z.ZodTypeAny | OdSupportedType) {
  * used as Yargs options.
  */
 export const OdOptionZodType = {
-  alias(this: OdSupportedType, alias: string | string[]) {
+  alias(this: LooseSupportedOptionType, alias: string | string[]) {
     return this.option({alias});
   },
 
-  global(this: OdSupportedType) {
+  global(this: LooseSupportedOptionType) {
     return this.option({global: true});
   },
 
-  hidden(this: OdSupportedType) {
+  hidden(this: LooseSupportedOptionType) {
     return this.option({hidden: true});
   },
 
-  defaultDescription(this: OdSupportedType, defaultDescription: string) {
+  defaultDescription(
+    this: LooseSupportedOptionType,
+    defaultDescription: string,
+  ) {
     return this.option({defaultDescription});
   },
 
-  group(this: OdSupportedType, group: string) {
+  group(this: LooseSupportedOptionType, group: string) {
     return this.option({group});
   },
 
-  count(this: OdSupportedType) {
+  count(this: LooseSupportedOptionType) {
     return this.option({count: true});
   },
 
-  normalize(this: OdSupportedType) {
+  normalize(this: LooseSupportedOptionType) {
     return this.option({normalize: true});
   },
 
-  nargs(this: OdSupportedType, nargs: number) {
+  nargs(this: LooseSupportedOptionType, nargs: number) {
     return this.option({nargs});
   },
 
-  demandOption(this: OdSupportedType, message?: string) {
+  demandOption(this: LooseSupportedOptionType, message?: string) {
     return this.option({
       demandOption: message && typeof message === 'string' ? message : true,
     });
   },
 
-  option(this: OdSupportedType, config?: OdOptions) {
+  option(this: LooseSupportedOptionType, config?: OdOptions) {
     assertValidInnerType(this);
     const This = (this as any).constructor;
     return new This({
@@ -156,7 +124,7 @@ export const OdOptionZodType = {
     }) as any;
   },
 
-  _toYargsOptions(this: OdSupportedType): y.Options {
+  _toYargsOptions(this: LooseSupportedOptionType): y.Options {
     assertValidInnerType(this);
     return {
       ...this._yargsType,
@@ -180,26 +148,3 @@ Object.defineProperty(OdOptionZodType, '_yargsType', {
   configurable: true,
   enumerable: false,
 });
-
-/**
- * Translates a Yargs-options-supporting `ZodType` into the equivalent Yargs
- * type, or `undefined` if the `ZodType` is unsupported.
- */
-export function getYargsType<T extends z.ZodTypeAny | OdSupportedType>(
-  schema: T,
-): {type: y.Options['type']} | undefined {
-  switch (schema._def?.typeName) {
-    case z.ZodFirstPartyTypeKind.ZodBoolean:
-      return {type: 'boolean'};
-    case z.ZodFirstPartyTypeKind.ZodString:
-    case z.ZodFirstPartyTypeKind.ZodEnum:
-      return {type: 'string'};
-    case z.ZodFirstPartyTypeKind.ZodNumber:
-      return {type: 'number'};
-    case z.ZodFirstPartyTypeKind.ZodArray:
-      return getYargsType(schema._def.type);
-    case z.ZodFirstPartyTypeKind.ZodOptional:
-    case z.ZodFirstPartyTypeKind.ZodDefault:
-      return getYargsType(schema._def.innerType);
-  }
-}

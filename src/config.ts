@@ -29,35 +29,37 @@ interface CreateZodTransformerOpts {
   safe?: boolean;
 }
 
+type OdObject = z.ZodObject<any, any, any, any, any>;
+
 /**
  * The result of a {@linkcode PrepareTransform}
  */
-export type PreparedResult<Schema extends z.AnyZodObject> = {
+export type PreparedResult<Schema extends OdObject> = {
   filepath: string;
-  config: Schema['_input'];
+  config: z.input<Schema>;
   isEmpty?: boolean;
 } | null;
 
 /**
  * The result of a {@linkcode ValidatorTransform}
  */
-export type ValidatedResult<Schema extends z.AnyZodObject> = {
+export type ValidatedResult<Schema extends OdObject> = {
   filepath: string;
-  config: Schema['_output'];
+  config: z.output<Schema>;
   isEmpty?: boolean;
 } | null;
 
 /**
  * Transformer function that runs _before_ validation
  */
-export type PrepareTransform<Schema extends z.AnyZodObject> = (
+export type PrepareTransform<Schema extends OdObject> = (
   rawResult: LilconfigResult,
 ) => PreparedResult<Schema> | Promise<PreparedResult<Schema>>;
 
 /**
  * Synchronous transformer function that runs _before_ validation
  */
-export type PrepareTransformSync<Schema extends z.AnyZodObject> = (
+export type PrepareTransformSync<Schema extends OdObject> = (
   rawResult: LilconfigResult,
 ) => PreparedResult<Schema>;
 
@@ -65,7 +67,7 @@ export type PrepareTransformSync<Schema extends z.AnyZodObject> = (
  * Validation transform
  * @internal
  */
-export type ValidatorTransform<Schema extends z.AnyZodObject> = (
+export type ValidatorTransform<Schema extends OdObject> = (
   preResult: PreparedResult<Schema>,
 ) => Promise<ValidatedResult<Schema>>;
 
@@ -73,7 +75,7 @@ export type ValidatorTransform<Schema extends z.AnyZodObject> = (
  * Synchronous validation transform
  * @internal
  */
-type ValidatorTransformSync<Schema extends z.AnyZodObject> = (
+type ValidatorTransformSync<Schema extends OdObject> = (
   preResult: PreparedResult<Schema>,
 ) => ValidatedResult<Schema>;
 
@@ -83,7 +85,7 @@ type ValidatorTransformSync<Schema extends z.AnyZodObject> = (
  * @param opts - Options
  * @returns A {@linkcode ValidatorTransform}
  */
-function createValidatorTransform<Schema extends z.AnyZodObject>(
+function createValidatorTransform<Schema extends OdObject>(
   schema: Schema,
   opts: CreateZodTransformerOpts = {},
 ): ValidatorTransform<Schema> {
@@ -93,13 +95,16 @@ function createValidatorTransform<Schema extends z.AnyZodObject>(
       return result;
     }
     if (opts.safe) {
-      const parsed = await schema.safeParseAsync(result.config);
+      const parsed: z.SafeParseReturnType<
+        z.input<Schema>,
+        z.output<Schema>
+      > = await schema.safeParseAsync(result.config);
       debug('(transform) Safe validation result: %O', parsed);
       return parsed.success
         ? {...result, config: parsed.data}
         : {...result, error: parsed.error};
     }
-    const parsed = await schema.parseAsync(result.config);
+    const parsed: z.output<Schema> = await schema.parseAsync(result.config);
     debug('(transform) Validation result: %O', parsed);
     return {...result, config: parsed};
   };
@@ -111,7 +116,7 @@ function createValidatorTransform<Schema extends z.AnyZodObject>(
  * @param opts - Options
  * @returns A synchronous {@linkcode ValidatorTransform}
  */
-function createValidatorTransformSync<Schema extends z.AnyZodObject>(
+function createValidatorTransformSync<Schema extends OdObject>(
   schema: Schema,
   opts: CreateZodTransformerOpts = {},
 ): ValidatorTransformSync<Schema> {
@@ -121,13 +126,16 @@ function createValidatorTransformSync<Schema extends z.AnyZodObject>(
       return result;
     }
     if (opts.safe) {
-      const parsed = schema.safeParse(result.config);
+      const parsed: z.SafeParseReturnType<
+        z.input<Schema>,
+        z.output<Schema>
+      > = schema.safeParse(result.config);
       debug('(transform) Safe parse result: %O', parsed);
       return parsed.success
         ? {...result, config: parsed.data}
         : {...result, error: parsed.error};
     }
-    const parsed = schema.parse(result.config);
+    const parsed: z.output<Schema> = schema.parse(result.config);
     debug('(transform) Parse result: %O', parsed);
     return {...result, config: parsed};
   };
@@ -137,7 +145,7 @@ function createValidatorTransformSync<Schema extends z.AnyZodObject>(
  * Options for {@linkcode buildTransform}
  * @internal
  */
-interface BuildTransformOpts<Schema extends z.AnyZodObject> {
+interface BuildTransformOpts<Schema extends OdObject> {
   /**
    * @defaultValue false
    */
@@ -149,7 +157,7 @@ interface BuildTransformOpts<Schema extends z.AnyZodObject> {
  * Options for {@linkcode buildTransformSync}
  * @internal
  */
-interface BuildTransformSyncOpts<Schema extends z.AnyZodObject> {
+interface BuildTransformSyncOpts<Schema extends OdObject> {
   /**
    * @defaultValue false
    */
@@ -164,7 +172,7 @@ interface BuildTransformSyncOpts<Schema extends z.AnyZodObject> {
  * @returns Lilconfig transform
  * @internal
  */
-function buildTransform<Schema extends z.AnyZodObject>(
+function buildTransform<Schema extends OdObject>(
   schema: Schema,
   opts?: BuildTransformOpts<Schema>,
 ) {
@@ -209,7 +217,7 @@ function isAsyncFunction(fn: unknown): fn is (...args: any[]) => Promise<any> {
  * @returns Synchronous Lilconfig transform
  * @internal
  */
-function buildTransformSync<Schema extends z.AnyZodObject>(
+function buildTransformSync<Schema extends OdObject>(
   schema: Schema,
   opts?: BuildTransformSyncOpts<Schema>,
 ) {
@@ -272,8 +280,7 @@ export interface BaseConfigOpts {
  *
  * All `loaders` and `prepare` can be synchronous or asynchronous, but the latter is preferred.
  */
-export interface ConfigOpts<Schema extends z.AnyZodObject>
-  extends BaseConfigOpts {
+export interface ConfigOpts<Schema extends OdObject> extends BaseConfigOpts {
   /**
    * Transform to run _before_ validation
    */
@@ -303,7 +310,7 @@ export interface SearchOpts {
  *
  * All `loaders` and `prepare` _must_ be synchronous.
  */
-export interface ConfigOptsSync<Schema extends z.AnyZodObject>
+export interface ConfigOptsSync<Schema extends OdObject>
   extends BaseConfigOpts {
   /**
    * Synchronous transform to run _before_ validation
@@ -325,10 +332,10 @@ export type ConfigPathOpts = {
   path?: string;
 };
 
-export type GetConfigOpts<Schema extends z.AnyZodObject> = ConfigOpts<Schema> &
+export type GetConfigOpts<Schema extends OdObject> = ConfigOpts<Schema> &
   ConfigPathOpts;
 
-export type GetConfigOptsSync<Schema extends z.AnyZodObject> =
+export type GetConfigOptsSync<Schema extends OdObject> =
   ConfigOptsSync<Schema> & ConfigPathOpts;
 
 const DEFAULT_LOADERS = {'.mjs': loadEsm, '.js': loadEsm} as const;
@@ -341,7 +348,7 @@ const DEFAULT_LOADERS_SYNC = {} as const;
  * @returns Lilconfig options
  * @internal
  */
-function buildOptions<Schema extends z.AnyZodObject>(
+function buildOptions<Schema extends OdObject>(
   schema: Schema,
   opts?: ConfigOpts<Schema>,
 ): LilconfigOpts | LilconfigOptsSync {
@@ -369,7 +376,7 @@ function buildOptions<Schema extends z.AnyZodObject>(
  * @returns Lilconfig options
  * @internal
  */
-function buildOptionsSync<Schema extends z.AnyZodObject>(
+function buildOptionsSync<Schema extends OdObject>(
   schema: Schema,
   opts?: ConfigOptsSync<Schema>,
 ) {
@@ -409,7 +416,7 @@ export function resetCache() {
  * @param opts - Options
  * @returns A typed, validated (and optionally transformed) configuration object
  */
-export async function searchConfig<Schema extends z.AnyZodObject>(
+export async function searchConfig<Schema extends OdObject>(
   scriptName: string,
   schema: Schema,
   opts?: ConfigOpts<Schema> & SearchOpts,
@@ -430,7 +437,7 @@ export async function searchConfig<Schema extends z.AnyZodObject>(
  * @param opts - Options
  * @returns A typed, validated (and optionally transformed) configuration object
  */
-export function searchConfigSync<Schema extends z.AnyZodObject>(
+export function searchConfigSync<Schema extends OdObject>(
   scriptName: string,
   schema: Schema,
   opts?: ConfigOptsSync<Schema> & SearchOpts,
@@ -452,7 +459,7 @@ export function searchConfigSync<Schema extends z.AnyZodObject>(
  * @param opts - Options
  * @returns A typed, validated (and optionally transformed) configuration object
  */
-export async function loadConfig<Schema extends z.AnyZodObject>(
+export async function loadConfig<Schema extends OdObject>(
   scriptName: string,
   filepath: string,
   schema: Schema,
@@ -479,7 +486,7 @@ export async function loadConfig<Schema extends z.AnyZodObject>(
  * @param opts - Options
  * @returns A typed, validated (and optionally transformed) configuration object
  */
-export function loadConfigSync<Schema extends z.AnyZodObject>(
+export function loadConfigSync<Schema extends OdObject>(
   scriptName: string,
   filepath: string,
   schema: Schema,
@@ -499,7 +506,7 @@ export function loadConfigSync<Schema extends z.AnyZodObject>(
   return result;
 }
 
-export async function getConfig<Schema extends z.AnyZodObject>(
+export async function getConfig<Schema extends OdObject>(
   scriptName: string,
   schema: Schema,
   opts: GetConfigOpts<Schema> = {},
@@ -510,7 +517,7 @@ export async function getConfig<Schema extends z.AnyZodObject>(
     : searchConfig(scriptName, schema, configOpts);
 }
 
-export function getConfigSync<Schema extends z.AnyZodObject>(
+export function getConfigSync<Schema extends OdObject>(
   scriptName: string,
   schema: Schema,
   opts: GetConfigOptsSync<Schema> = {},

@@ -167,6 +167,26 @@ describe('command handling', function () {
             }),
           );
         });
+
+        it('should always use the most recent information', function () {
+          expect(z.command('foo', 'bar').command('baz', 'quux'), 'to satisfy', {
+            _def: {description: 'quux', odCommandOptions: {command: 'baz'}},
+          });
+        });
+      });
+
+      describe('positional()', function () {
+        it('should create a new object containing the positional', function () {
+          const zCommand = z
+            .object({name: z.string()})
+            .positional('file', z.string());
+          expect(zCommand, 'to satisfy', {
+            shape: {
+              name: expect.it('to be a', z.ZodOptional),
+              _: expect.it('to be a', z.ZodTuple),
+            },
+          });
+        });
       });
 
       describe('_toYargsCommand()', function () {
@@ -211,14 +231,6 @@ describe('command handling', function () {
                 butts: 1,
               },
             );
-          });
-        });
-      });
-
-      describe('command()', function () {
-        it('should use the latest information', function () {
-          expect(z.command('foo', 'bar').command('baz', 'quux'), 'to satisfy', {
-            _def: {description: 'quux', odCommandOptions: {command: 'baz'}},
           });
         });
       });

@@ -22,10 +22,17 @@ import type {
   ExtendOdOptions,
   OdOptions,
   ShapeToOdOptions,
-  YargsType,
   Yargsify,
 } from './od-option';
+import {
+  ExtendPositionalTuple,
+  OdPositionalOptions,
+  PositionalTuple,
+  PositionalTupleItems,
+  PositionalZodType,
+} from './od-positional';
 import type {kOd} from './register';
+import {YargsType} from './yargs';
 
 declare module 'zod' {
   interface ZodTypeDef {
@@ -711,6 +718,13 @@ declare module 'zod' {
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
   }
 
+  interface ZodTupleDef<
+    T extends z.ZodTupleItems | [] = z.ZodTupleItems,
+    Rest extends z.ZodTypeAny | null = null,
+  > {
+    odPositionalOptions?: [...OdPositionalOptions[]];
+  }
+
   interface ZodObjectDef<
     T extends z.ZodRawShape = z.ZodRawShape,
     UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
@@ -718,6 +732,29 @@ declare module 'zod' {
   > {
     odCommandOptions: OdCommandOptions<T>;
   }
+
+  type OptionalShape<T extends z.ZodRawShape> = {
+    [K in keyof T]: T[K] extends z.ZodOptional<any>
+      ? T[K]
+      : z.ZodOptional<T[K]>;
+  };
+
+  interface ZodCommandDef<
+    T extends z.ZodRawShape = z.ZodRawShape,
+    Catchall extends z.ZodTypeAny = z.ZodTypeAny,
+    OCO extends OdCommandOptions<OptionalShape<T>> = OdCommandOptions<
+      OptionalShape<T>
+    >,
+  > extends ZodObjectDef<OptionalShape<T>, 'passthrough', Catchall> {
+    odCommandOptions: OCO;
+  }
+
+  type ExtendOdCommandOptions<
+    T extends ZodObject<any, any, any, any, any>,
+    OCO extends OdCommandOptions<T['shape']> = OdCommandOptions<T['shape']>,
+  > = T & {
+    _def: T['_def'] & ZodCommandDef<T['shape'], T['_def']['catchall'], OCO>;
+  };
 
   /**
    * New methods on `ZodObject` subclasses
@@ -729,53 +766,48 @@ declare module 'zod' {
     Output = z.objectOutputType<T, Catchall, UnknownKeys>,
     Input = z.objectInputType<T, Catchall, UnknownKeys>,
   > {
-    command(
-      command: string | readonly string[],
-      description?: string,
-      handler?: OdCommandHandler<T>,
-    ): ZodObject<
-      {[K in keyof T]: z.ZodOptional<T[K]>},
-      'passthrough',
-      this['_def']['catchall']
+    command<
+      Cmd extends string | readonly string[],
+      Desc extends string,
+      Handler extends OdCommandHandler<T>,
+    >(
+      command: Cmd,
+      description?: Desc,
+      handler?: Handler,
+    ): ExtendOdCommandOptions<
+      this,
+      {command: Cmd; description: Desc; handler: Handler}
     >;
+
     command<OCO extends OdCommandOptions<T>>(
       params: OdCommandCreateParams<OCO>,
-    ): ZodObject<
-      {[K in keyof T]: z.ZodOptional<T[K]>},
-      'passthrough',
-      this['_def']['catchall']
-    >;
+    ): ExtendOdCommandOptions<this, OCO>;
 
-    middlewares(
-      middlewares: OdMiddleware<T>[],
-    ): ZodObject<
-      {[K in keyof T]: z.ZodOptional<T[K]>},
-      'passthrough',
-      this['_def']['catchall']
-    >;
+    middlewares(middlewares: OdMiddleware<T>[]): ExtendOdCommandOptions<this>;
     middlewares(
       ...middlewares: OdMiddleware<T>[]
-    ): ZodObject<
-      {[K in keyof T]: z.ZodOptional<T[K]>},
-      'passthrough',
-      this['_def']['catchall']
+    ): ExtendOdCommandOptions<this>;
+
+    positional<
+      P extends PositionalZodType,
+      OPO extends Partial<OdPositionalOptions>,
+      CurItems extends PositionalTupleItems,
+      S extends T & {_?: PositionalTuple<CurItems>},
+    >(
+      name: string,
+      schema: P,
+      opts?: OPO,
+    ): ExtendOdCommandOptions<
+      z.ZodObject<
+        ExtendPositionalTuple<S, P, CurItems>,
+        'passthrough',
+        Catchall
+      >
     >;
 
-    handler(
-      handler: OdCommandHandler<T>,
-    ): ZodObject<
-      {[K in keyof T]: z.ZodOptional<T[K]>},
-      'passthrough',
-      this['_def']['catchall']
-    >;
+    handler(handler: OdCommandHandler<T>): ExtendOdCommandOptions<this>;
 
-    deprecated(
-      message?: string | boolean,
-    ): ZodObject<
-      {[K in keyof T]: z.ZodOptional<T[K]>},
-      'passthrough',
-      this['_def']['catchall']
-    >;
+    deprecated(message?: string | boolean): ExtendOdCommandOptions<this>;
 
     /**
      * Generate a mapping of option name to `yargs.options()` object for this

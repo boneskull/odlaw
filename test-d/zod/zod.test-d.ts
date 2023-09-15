@@ -149,3 +149,6 @@ expectType<{
 //     })
 //     ._toYargs({} as yargs.Argv),
 // );
+
+// const obj = z.object({});
+// printType(createPositional.call(obj, 'foo', z.string()));
