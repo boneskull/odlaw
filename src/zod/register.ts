@@ -24,12 +24,21 @@ export const SUPPORTED_OPTION_ZOD_TYPES = new Set([
   z.ZodDefault,
 ] as const);
 
+export const SUPPORTED_POSITIONAL_ZOD_TYPES = new Set([
+  z.ZodString,
+  z.ZodBoolean,
+  z.ZodNumber,
+  z.ZodEnum,
+  z.ZodOptional,
+  z.ZodDefault,
+] as const);
+
 const SUPPORTED_COMMAND_ZOD_TYPES = new Set([z.ZodObject] as const);
 
 /**
  * Monkeypatches Zod with yargs extensions
  */
-export function register(zod: typeof z) {
+export function register(zod: typeof z = z) {
   if ('kOd' in zod) {
     return zod;
   }
@@ -53,14 +62,20 @@ export function register(zod: typeof z) {
          * This handler ensures that `odOptions`/`odCommandOptions` exist on the
          * `_def` of each `ZodType` (even if empty)
          */
-        construct(target: any, [def]: [z.ZodAnyDef], receiver: any): any {
-          let newDef =
-            'odOptions' in def ? def : Object.assign(def, {odOptions: {}});
-          newDef =
-            'odCommandOptions' in def
-              ? def
-              : Object.assign(def, {odCommandOptions: {}});
-          return Reflect.construct(target, [newDef], receiver);
+        construct(
+          target: any,
+          [def]: [z.ZodAnyDef | z.ZodObjectDef],
+          receiver: any,
+        ): any {
+          if (SUPPORTED_OPTION_ZOD_TYPES.has(target)) {
+            def.odOptions ??= {};
+          }
+          if (SUPPORTED_POSITIONAL_ZOD_TYPES.has(target)) {
+            def.odPositionalOptions ??= {};
+          } else if (SUPPORTED_COMMAND_ZOD_TYPES.has(target)) {
+            (def as z.ZodObjectDef).odPositionals ??= {};
+          }
+          return Reflect.construct(target, [def], receiver);
         },
       });
       ctor.prototype.constructor = proxy;
@@ -74,7 +89,7 @@ export function register(zod: typeof z) {
  * @param zod
  * @returns
  */
-export function unregister(zod: typeof z) {
+export function unregister(zod: typeof z = z) {
   if (!(kOd in zod)) {
     return zod;
   }
@@ -88,7 +103,7 @@ export function unregister(zod: typeof z) {
     unmonkeypatch(kOd, ctor.prototype);
   }
 
-  [...SUPPORTED_OPTION_ZOD_TYPES]
+  [...SUPPORTED_OPTION_ZOD_TYPES, ...SUPPORTED_COMMAND_ZOD_TYPES]
     .filter((ctor) => ctor.prototype.constructor !== z.ZodType)
     .forEach((ctor) => {
       ctor.prototype.constructor = z.ZodType;
