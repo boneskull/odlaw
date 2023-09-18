@@ -12,31 +12,29 @@ import type * as y from 'yargs';
 import type z from 'zod';
 import type {ExpandDeep} from '../util';
 import {
-  OdCommandCreateParams,
-  OdCommandHandler,
-  OdCommandOptions,
-  OdMiddleware,
-  createOdCommand,
+  OdCommandZodType,
+  type OdCommandCreateParams,
+  type OdCommandHandler,
+  type OdCommandOptions,
+  type OdMiddleware,
+  type OdPositionalOptions,
+  type OdPositionalShape,
+  type PositionalZodType,
 } from './od-command';
 import type {
   ExtendOdOptions,
+  ExtendOdPositionalOptions,
   OdOptions,
   ShapeToOdOptions,
   Yargsify,
 } from './od-option';
-import {
-  ExtendPositionalTuple,
-  OdPositionalOptions,
-  PositionalTuple,
-  PositionalTupleItems,
-  PositionalZodType,
-} from './od-positional';
 import type {kOd} from './register';
-import {YargsType} from './yargs';
+import type {YargsType} from './yargs';
 
 declare module 'zod' {
   interface ZodTypeDef {
     odOptions?: OdOptions;
+    odPositionalOptions?: OdPositionalOptions;
   }
 
   interface ZodBoolean {
@@ -124,6 +122,10 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
+
+    _assignPositionalOptions<OO extends Exact<OdPositionalOptions, OO>>(
+      config: OO,
+    ): ExtendOdPositionalOptions<this, OO>;
   }
 
   interface ZodString {
@@ -225,6 +227,10 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
+
+    _assignPositionalOptions<OO extends Exact<OdPositionalOptions, OO>>(
+      config: OO,
+    ): ExtendOdPositionalOptions<this, OO>;
   }
 
   interface ZodNumber {
@@ -319,6 +325,10 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
+
+    _assignPositionalOptions<OO extends Exact<OdPositionalOptions, OO>>(
+      config: OO,
+    ): ExtendOdPositionalOptions<this, OO>;
   }
 
   interface ZodEnum<T extends [string, ...string[]]> {
@@ -419,6 +429,10 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
+
+    _assignPositionalOptions<OO extends Exact<OdPositionalOptions, OO>>(
+      config: OO,
+    ): ExtendOdPositionalOptions<this, OO>;
   }
 
   interface ZodArray<T extends z.ZodTypeAny> {
@@ -619,6 +633,9 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
+    _assignPositionalOptions<OO extends Exact<OdPositionalOptions, OO>>(
+      config: OO,
+    ): ExtendOdPositionalOptions<this, OO>;
   }
 
   interface ZodDefault<T extends z.ZodTypeAny> {
@@ -716,21 +733,17 @@ declare module 'zod' {
      * @internal
      */
     _toYargsOptions(): ExpandDeep<Yargsify<this>>;
+    _assignPositionalOptions<OO extends Exact<OdPositionalOptions, OO>>(
+      config: OO,
+    ): ExtendOdPositionalOptions<this, OO>;
   }
-
-  interface ZodTupleDef<
-    T extends z.ZodTupleItems | [] = z.ZodTupleItems,
-    Rest extends z.ZodTypeAny | null = null,
-  > {
-    odPositionalOptions?: [...OdPositionalOptions[]];
-  }
-
   interface ZodObjectDef<
     T extends z.ZodRawShape = z.ZodRawShape,
     UnknownKeys extends z.UnknownKeysParam = z.UnknownKeysParam,
     Catchall extends z.ZodTypeAny = z.ZodTypeAny,
   > {
     odCommandOptions: OdCommandOptions<T>;
+    odPositionals?: OdPositionalShape;
   }
 
   type OptionalShape<T extends z.ZodRawShape> = {
@@ -739,21 +752,20 @@ declare module 'zod' {
       : z.ZodOptional<T[K]>;
   };
 
-  interface ZodCommandDef<
-    T extends z.ZodRawShape = z.ZodRawShape,
-    Catchall extends z.ZodTypeAny = z.ZodTypeAny,
-    OCO extends OdCommandOptions<OptionalShape<T>> = OdCommandOptions<
-      OptionalShape<T>
-    >,
-  > extends ZodObjectDef<OptionalShape<T>, 'passthrough', Catchall> {
-    odCommandOptions: OCO;
-  }
-
   type ExtendOdCommandOptions<
-    T extends ZodObject<any, any, any, any, any>,
-    OCO extends OdCommandOptions<T['shape']> = OdCommandOptions<T['shape']>,
+    T extends z.ZodObject<any, any, any, any, any>,
+    OCO extends Partial<OdCommandOptions<T['shape']>> = Partial<
+      OdCommandOptions<T['shape']>
+    >,
   > = T & {
-    _def: T['_def'] & ZodCommandDef<T['shape'], T['_def']['catchall'], OCO>;
+    _def: T['_def'] & {odCommandOptions: T['_def']['odCommandOptions'] & OCO};
+  };
+
+  type ExtendOdPositionals<
+    T extends ZodObject<any, any, any, any, any>,
+    PS extends OdPositionalShape = OdPositionalShape,
+  > = T & {
+    _def: T['_def'] & {odPositionals: T['_def']['odPositionals'] & PS};
   };
 
   /**
@@ -783,31 +795,30 @@ declare module 'zod' {
       params: OdCommandCreateParams<OCO>,
     ): ExtendOdCommandOptions<this, OCO>;
 
-    middlewares(middlewares: OdMiddleware<T>[]): ExtendOdCommandOptions<this>;
-    middlewares(
-      ...middlewares: OdMiddleware<T>[]
-    ): ExtendOdCommandOptions<this>;
+    middlewares<M extends OdMiddleware<T>>(
+      middlewares: M[],
+    ): ExtendOdCommandOptions<this, {middlewares: M[]}>;
+    middlewares<M extends OdMiddleware<T>>(
+      ...middlewares: M[]
+    ): ExtendOdCommandOptions<this, {middlewares: M[]}>;
 
     positional<
       P extends PositionalZodType,
-      OPO extends Partial<OdPositionalOptions>,
-      CurItems extends PositionalTupleItems,
-      S extends T & {_?: PositionalTuple<CurItems>},
+      OPO extends OdPositionalOptions,
+      Name extends string,
     >(
-      name: string,
+      name: Name,
       schema: P,
       opts?: OPO,
-    ): ExtendOdCommandOptions<
-      z.ZodObject<
-        ExtendPositionalTuple<S, P, CurItems>,
-        'passthrough',
-        Catchall
-      >
-    >;
+    ): ExtendOdCommandOptions<this>;
 
-    handler(handler: OdCommandHandler<T>): ExtendOdCommandOptions<this>;
+    handler<H extends OdCommandHandler<T>>(
+      handler: H,
+    ): ExtendOdCommandOptions<this, {handler: H}>;
 
-    deprecated(message?: string | boolean): ExtendOdCommandOptions<this>;
+    deprecated<Msg extends string>(
+      message?: Msg,
+    ): ExtendOdCommandOptions<this, {deprecated: Msg}>;
 
     /**
      * Generate a mapping of option name to `yargs.options()` object for this
@@ -823,5 +834,5 @@ declare module 'zod' {
     _toYargsCommand<Y>(argv: y.Argv<Y>): y.Argv<Y>;
   }
 
-  const command: typeof createOdCommand;
+  const command: (typeof OdCommandZodType)['command'];
 }

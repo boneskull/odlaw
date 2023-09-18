@@ -1,10 +1,5 @@
-import type * as y from 'yargs';
 import z from 'zod';
-
-/**
- *
- */
-export type BaseYargsType = NonNullable<y.PositionalOptions['type']>;
+import {getTerminalType} from '../util';
 
 /**
  * Various flavors of string types supported by Yargs
@@ -26,7 +21,7 @@ export type InputToYargsType<Input> = Input extends boolean
 
 /**
  * The equivalent of {@linkcode y.Options.type} based on the `Input` of `ZodType`.
- * @typeParam Input - The `Input` of a `ZodType`; could be literally anything, but only a few types are supported by Yargs; see
+ * @typeParam Input - The `Input` of a `ZodType`; could be literally anything, but only a few types are supported by Yargs
  */
 export interface YargsType<Input> {
   type: InputToYargsType<NonNullable<Input>>;
@@ -36,30 +31,12 @@ export interface YargsType<Input> {
  * Translates a Yargs-options-supporting `ZodType` into the equivalent Yargs
  * type, or `undefined` if the `ZodType` is unsupported.
  */
-
 export function getYargsType<T extends z.ZodTypeAny>(
   schema: T,
 ): {type: InputToYargsType<z.input<T>>} | undefined {
-  switch (schema._def?.typeName) {
-    case z.ZodFirstPartyTypeKind.ZodBoolean:
-      return {type: 'boolean'} as any;
-    case z.ZodFirstPartyTypeKind.ZodString:
-    case z.ZodFirstPartyTypeKind.ZodEnum:
-      return {type: 'string'} as any;
-    case z.ZodFirstPartyTypeKind.ZodNumber:
-      return {type: 'number'} as any;
-    case z.ZodFirstPartyTypeKind.ZodArray:
-      return getYargsType(schema._def.type) as any;
-    case z.ZodFirstPartyTypeKind.ZodOptional:
-    case z.ZodFirstPartyTypeKind.ZodDefault:
-      return getYargsType(schema._def.innerType) as any;
-  }
-}
+  const innerType = getTerminalType(schema);
 
-export function getYargsTypeForPositional<T extends z.ZodTypeAny>(
-  schema: T,
-): {type: InputToYargsType<z.input<T>>} | undefined {
-  switch (schema._def?.typeName) {
+  switch (innerType?._def?.typeName) {
     case z.ZodFirstPartyTypeKind.ZodBoolean:
       return {type: 'boolean'} as any;
     case z.ZodFirstPartyTypeKind.ZodString:
@@ -67,9 +44,6 @@ export function getYargsTypeForPositional<T extends z.ZodTypeAny>(
       return {type: 'string'} as any;
     case z.ZodFirstPartyTypeKind.ZodNumber:
       return {type: 'number'} as any;
-    case z.ZodFirstPartyTypeKind.ZodOptional:
-    case z.ZodFirstPartyTypeKind.ZodDefault:
-      return getYargsType(schema._def.innerType) as any;
   }
 }
 

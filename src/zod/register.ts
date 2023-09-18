@@ -10,7 +10,7 @@
 
 import z from 'zod';
 import {monkeypatch, unmonkeypatch} from '../monkey';
-import {OdCommandZodType, createOdCommand} from './od-command';
+import {OdCommandZodType, command} from './od-command';
 import {OdOptionZodType} from './od-option';
 export const kOd: unique symbol = Symbol('kOd');
 
@@ -41,7 +41,7 @@ export function register(zod: typeof z) {
     monkeypatch(kOd, ctor.prototype, OdCommandZodType);
   }
 
-  monkeypatch(kOd, zod, {command: createOdCommand});
+  monkeypatch(kOd, zod, {command});
 
   // we are lucky that none of these have constructors. if they did,
   // we'd be SOL to trap it, because all properties of `z` are read-only.

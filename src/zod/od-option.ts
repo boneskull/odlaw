@@ -1,8 +1,9 @@
 import type {Exact} from 'type-fest';
 import type * as y from 'yargs';
 import z from 'zod';
-import {Compact} from '../util';
-import {HasYargsType, YargsType, getYargsType} from './yargs';
+import type {Compact} from '../util';
+import type {OdPositionalOptions, PositionalZodType} from './od-command';
+import {getYargsType, type HasYargsType, type YargsType} from './yargs';
 
 type LooseSupportedOptionType =
   | z.ZodBoolean
@@ -43,9 +44,11 @@ export type OdOptions = Pick<
   | 'normalize'
 >;
 
-export type ShapeToOdOptions<S extends z.ZodRawShape> = {
-  [K in keyof S]: Yargsify<S[K]>;
-};
+export type ShapeToOdOptions<S extends z.ZodRawShape> = z.ZodRawShape extends S
+  ? Record<string, any>
+  : {
+      [K in keyof S]: Yargsify<S[K]>;
+    };
 
 export type Yargsify<
   T extends z.ZodTypeAny,
@@ -61,6 +64,13 @@ export type ExtendOdOptions<
   EOO extends Exact<OdOptions, EOO>,
 > = HasYargsType<T> extends true
   ? T & {_def: T['_def'] & {odOptions: T['_def']['odOptions'] & EOO}}
+  : never;
+
+export type ExtendOdPositionalOptions<
+  T extends z.ZodTypeAny,
+  EOO extends Exact<OdPositionalOptions, EOO>,
+> = HasYargsType<T> extends true
+  ? T & {_def: T['_def'] & {odOptions: T['_def']['odPositionalOptions'] & EOO}}
   : never;
 
 function assertValidInnerType(t: z.ZodTypeAny) {
@@ -131,6 +141,17 @@ export const OdOptionZodType = {
       ...this._def.odOptions,
       describe: this.description || this._def.odOptions?.describe,
     };
+  },
+
+  _assignPositionalOptions<OPO extends OdPositionalOptions>(
+    this: PositionalZodType,
+    config: OPO,
+  ) {
+    const This = (this as any).constructor;
+    return new This({
+      ...this._def,
+      odPositionalOptions: {...this._def.odPositionalOptions, ...config},
+    }) as any;
   },
 };
 
