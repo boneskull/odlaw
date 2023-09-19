@@ -7,25 +7,22 @@ env:
 extends:
   - 'semistandard'
   - 'plugin:@typescript-eslint/recommended'
+  - 'plugin:eslint-plugin-jsdoc/recommended-typescript'
   - 'prettier'
 
-ignorePatterns:
-  - 'node_modules/**/*'
-  - 'coverage/**/*'
-  - 'dist/**/*'
-  - '__snapshots__/**/*'
-
 overrides:
-  - files:
-      - 'bin/**/*'
+  - files: ['bin/**/*']
     parserOptions:
       sourceType: 'module'
   - env:
       mocha: true
-    files:
-      - 'test/**/*'
+    files: ['test/**/*']
     rules:
       '@typescript-eslint/no-unused-vars': 'off'
+      'jsdoc/require-file-overview': 'off'
+  - files: ['test-d/**/*', './*.js']
+    rules:
+      'jsdoc/require-file-overview': 'off'
 
 parser: '@typescript-eslint/parser'
 
@@ -39,3 +36,38 @@ rules:
     - extendDefaults: true
       types:
         '{}': false
+  'jsdoc/informative-docs': 'warn'
+  'jsdoc/require-asterisk-prefix': 'warn'
+  'jsdoc/require-file-overview': 'warn'
+  'jsdoc/require-jsdoc':
+    - 'warn'
+    - contexts:
+        [
+          'TSAsExpression[typeAnnotation.typeName.name=const] > ObjectExpression :function',
+        ]
+  'jsdoc/tag-lines':
+    - 'warn'
+    - 'never'
+    - startLines: 1
+
+settings:
+  jsdoc:
+    tagNamePreference:
+      file:
+        replacement: 'packageDocumentation'
+    structuredTags:
+      defaultValue:
+        name: 'text'
+        type: false
+        required: ['name']
+      category:
+        name: 'text'
+        type: false
+        required: ['name']
+      typeParam:
+        name: 'text'
+        type: false
+        required: ['name']
+      remarks:
+        name: 'text'
+        type: false
