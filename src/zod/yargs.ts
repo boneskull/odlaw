@@ -20,8 +20,10 @@ export type InputToYargsType<Input> = Input extends boolean
   : never;
 
 /**
- * The equivalent of {@linkcode y.Options.type} based on the `Input` of `ZodType`.
- * @typeParam Input - The `Input` of a `ZodType`; could be literally anything, but only a few types are supported by Yargs
+ * The equivalent of {@link y.Options.type} based on the `Input` of `ZodType`.
+ *
+ * @typeParam Input - The `Input` of a `ZodType`; could be literally anything,
+ *   but only a few types are supported by Yargs
  */
 export interface YargsType<Input> {
   type: InputToYargsType<NonNullable<Input>>;
@@ -30,6 +32,10 @@ export interface YargsType<Input> {
 /**
  * Translates a Yargs-options-supporting `ZodType` into the equivalent Yargs
  * type, or `undefined` if the `ZodType` is unsupported.
+ *
+ * @param schema - Zod schema to convert
+ * @returns Object containing `type` property with the equivalent Yargs type, or
+ *   `undefined` if the `ZodType` is unsupported
  */
 export function getYargsType<T extends z.ZodTypeAny>(
   schema: T,

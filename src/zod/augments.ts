@@ -2,6 +2,7 @@
  * Contains module augmentation for `zod`'s `ZodType` abstract class.
  *
  * See `zodtype.ts` for the implementation.
+ *
  * @packageDocumentation
  */
 
@@ -39,20 +40,24 @@ declare module 'zod' {
 
   interface ZodBoolean {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<boolean>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<OO extends Exact<OdOptions, OO>>(
       config: OO,
@@ -84,7 +89,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<G extends string>(group: G): ExtendOdOptions<this, {group: G}>;
 
@@ -97,7 +103,8 @@ declare module 'zod' {
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
-     * @param message Error message
+     *
+     * @param message - Error message
      */
     demandOption<M extends string | boolean>(
       message?: M,
@@ -106,14 +113,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -130,20 +139,24 @@ declare module 'zod' {
 
   interface ZodString {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<string>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<DOO extends Exact<OdOptions, DOO>>(
       config: DOO,
@@ -175,7 +188,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<Group extends string>(
       group: Group,
@@ -190,7 +204,8 @@ declare module 'zod' {
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
-     * @param message Error message
+     *
+     * @param message - Error message
      */
     demandOption<Msg extends string>(
       message?: Msg,
@@ -211,14 +226,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -235,20 +252,24 @@ declare module 'zod' {
 
   interface ZodNumber {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<number>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<DOO extends Exact<OdOptions, DOO>>(
       config: DOO,
@@ -280,7 +301,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<Group extends string>(
       group: Group,
@@ -294,7 +316,8 @@ declare module 'zod' {
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
-     * @param message Error message
+     *
+     * @param message - Error message
      */
     demandOption<Msg extends string>(
       message?: Msg,
@@ -309,14 +332,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -333,20 +358,24 @@ declare module 'zod' {
 
   interface ZodEnum<T extends [string, ...string[]]> {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<string>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<DOO extends Exact<OdOptions, DOO>>(
       config: DOO,
@@ -378,7 +407,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<Group extends string>(
       group: Group,
@@ -392,7 +422,8 @@ declare module 'zod' {
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
-     * @param message Error message
+     *
+     * @param message - Error message
      */
     demandOption<Msg extends string>(
       message?: Msg,
@@ -413,14 +444,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -437,20 +470,24 @@ declare module 'zod' {
 
   interface ZodArray<T extends z.ZodTypeAny> {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<T extends {_yargsType: infer Y} ? Y : never>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<DOO extends Exact<OdOptions, DOO>>(
       config: DOO,
@@ -482,7 +519,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<Group extends string>(
       group: Group,
@@ -496,7 +534,8 @@ declare module 'zod' {
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
-     * @param message Error message
+     *
+     * @param message - Error message
      */
     demandOption<Msg extends string>(
       message?: Msg,
@@ -517,14 +556,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -537,20 +578,24 @@ declare module 'zod' {
 
   interface ZodOptional<T extends z.ZodTypeAny> {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<T extends {_yargsType: infer Y} ? Y : never>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<DOO extends Exact<OdOptions, DOO>>(
       config: DOO,
@@ -582,7 +627,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<Group extends string>(
       group: Group,
@@ -596,7 +642,8 @@ declare module 'zod' {
      * Set Yargs' `demandOption` flag; require this option to be provided.
      *
      * Recommended to avoid for ergonomics; use a positional instead.
-     * @param message Error message
+     *
+     * @param message - Error message
      */
     demandOption<Msg extends string>(
       message?: Msg,
@@ -617,14 +664,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -640,20 +689,24 @@ declare module 'zod' {
 
   interface ZodDefault<T extends z.ZodTypeAny> {
     /**
-     * This is _also_ explicitly on the `prototype` of every supported `ZodType` subclass
+     * This is _also_ explicitly on the `prototype` of every supported `ZodType`
+     * subclass
+     *
      * @internal
      */
     [kOd]: true;
 
     /**
      * The equivalent yargs type, if this `ZodType` subclass is supported.
+     *
      * @internal
      */
     _yargsType: YargsType<T extends {_yargsType: infer Y} ? Y : never>;
 
     /**
      * Set options on a `ZodType` via object instead of fluent interface
-     * @param config Options object
+     *
+     * @param config - Options object
      */
     option<DOO extends Exact<OdOptions, DOO>>(
       config: DOO,
@@ -685,7 +738,8 @@ declare module 'zod' {
 
     /**
      * Set Yargs' `group` `string` for this `ZodType`; used in help text only
-     * @param group Display group
+     *
+     * @param group - Display group
      */
     group<Group extends string>(
       group: Group,
@@ -717,14 +771,16 @@ declare module 'zod' {
     /**
      * Provide aliases for this `ZodType`; usually of the "shorthand"
      * single-character variety
-     * @param alias Alias or aliases
+     *
+     * @param alias - Alias or aliases
      */
     alias<A extends string | readonly string[]>(
       alias: A,
     ): ExtendOdOptions<this, {alias: A}>;
 
     /**
-     * Generate the object which will be passed to `yargs.options()` for this `ZodType`.
+     * Generate the object which will be passed to `yargs.options()` for this
+     * `ZodType`.
      *
      * This function is expected to be called within the context of a parent
      * `ZodObject`. That `ZodObject` may be called with `.strict()`, and if so,
@@ -824,7 +880,7 @@ declare module 'zod' {
      * Generate a mapping of option name to `yargs.options()` object for this
      * `ZodObject`.
      *
-     * This will call {@linkcode _toYargsOptions} on each property of the
+     * This will call {@link _toYargsOptions} on each property of the
      * `ZodObject`'s `shape`.
      *
      * @internal

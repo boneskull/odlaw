@@ -1,12 +1,11 @@
 /**
- * Implementation of new methods grafted onto `zod`'s `ZodType` abstract class and its `ZodObject` subclass.
+ * Implementation of new methods grafted onto `zod`'s `ZodType` abstract class
+ * and its `ZodObject` subclass.
  *
  * See `zodtype-augment.ts` for the module augmentation itself.
+ *
  * @packageDocumentation
  */
-
-/* eslint-disable no-prototype-builtins */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import z from 'zod';
 import {monkeypatch, unmonkeypatch} from '../monkey';
@@ -37,6 +36,9 @@ const SUPPORTED_COMMAND_ZOD_TYPES = new Set([z.ZodObject] as const);
 
 /**
  * Monkeypatches Zod with yargs extensions
+ *
+ * @param zod - It's Zod.
+ * @returns The monkeypatched `zod` object
  */
 export function register(zod: typeof z = z) {
   if ('kOd' in zod) {
@@ -61,6 +63,13 @@ export function register(zod: typeof z = z) {
         /**
          * This handler ensures that `odOptions`/`odCommandOptions` exist on the
          * `_def` of each `ZodType` (even if empty)
+         *
+         * @param target - Proxy target
+         * @param root0 - Arguments
+         * @param root0."0" - Always a {@link z.ZodTypeDef}
+         * @param receiver - Proxy receiver
+         * @returns The result of the `ZodType` constructor with some added
+         *   properties stuffed into the definition
          */
         construct(
           target: any,
@@ -86,8 +95,9 @@ export function register(zod: typeof z = z) {
 
 /**
  * Undo the horrible things we did to `zod`.
- * @param zod
- * @returns
+ *
+ * @param zod - It's Zod.
+ * @returns The original `zod` object
  */
 export function unregister(zod: typeof z = z) {
   if (!(kOd in zod)) {

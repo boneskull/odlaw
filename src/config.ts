@@ -1,3 +1,9 @@
+/**
+ * Provides functions to load config files and parse them with Zod.
+ *
+ * @packageDocumentation
+ */
+
 import createDebug from 'debug';
 import {
   lilconfig,
@@ -13,8 +19,10 @@ import {z} from 'zod';
 const debug = createDebug('odlaw:config');
 
 /**
- * ESM config loader; only works if using {@linkcode searchConfig} or {@linkcode loadConfig}
- * @param filepath Path to module or script
+ * ESM config loader; only works if using {@link searchConfig} or
+ * {@link loadConfig}
+ *
+ * @param filepath - Path to module or script
  * @returns Module
  */
 const loadEsm: Loader = async (filepath: string) => import(filepath);
@@ -32,7 +40,7 @@ interface CreateZodTransformerOpts {
 type OdObject = z.ZodObject<any, any, any, any, any>;
 
 /**
- * The result of a {@linkcode PrepareTransform}
+ * The result of a {@link PrepareTransform}
  */
 export type PreparedResult<Schema extends OdObject> = {
   filepath: string;
@@ -41,7 +49,7 @@ export type PreparedResult<Schema extends OdObject> = {
 } | null;
 
 /**
- * The result of a {@linkcode ValidatorTransform}
+ * The result of a {@link ValidatorTransform}
  */
 export type ValidatedResult<Schema extends OdObject> = {
   filepath: string;
@@ -65,6 +73,7 @@ export type PrepareTransformSync<Schema extends OdObject> = (
 
 /**
  * Validation transform
+ *
  * @internal
  */
 export type ValidatorTransform<Schema extends OdObject> = (
@@ -73,6 +82,7 @@ export type ValidatorTransform<Schema extends OdObject> = (
 
 /**
  * Synchronous validation transform
+ *
  * @internal
  */
 type ValidatorTransformSync<Schema extends OdObject> = (
@@ -80,10 +90,11 @@ type ValidatorTransformSync<Schema extends OdObject> = (
 ) => ValidatedResult<Schema>;
 
 /**
- * Creates a {@linkcode ValidatorTransform}
+ * Creates a {@link ValidatorTransform}
+ *
  * @param schema - Zod schema
  * @param opts - Options
- * @returns A {@linkcode ValidatorTransform}
+ * @returns A {@link ValidatorTransform}
  */
 function createValidatorTransform<Schema extends OdObject>(
   schema: Schema,
@@ -111,10 +122,11 @@ function createValidatorTransform<Schema extends OdObject>(
 }
 
 /**
- * Creates a synchronous {@linkcode ValidatorTransform}
+ * Creates a synchronous {@link ValidatorTransform}
+ *
  * @param schema - Zod schema
  * @param opts - Options
- * @returns A synchronous {@linkcode ValidatorTransform}
+ * @returns A synchronous {@link ValidatorTransform}
  */
 function createValidatorTransformSync<Schema extends OdObject>(
   schema: Schema,
@@ -142,7 +154,8 @@ function createValidatorTransformSync<Schema extends OdObject>(
 }
 
 /**
- * Options for {@linkcode buildTransform}
+ * Options for {@link buildTransform}
+ *
  * @internal
  */
 interface BuildTransformOpts<Schema extends OdObject> {
@@ -154,7 +167,8 @@ interface BuildTransformOpts<Schema extends OdObject> {
 }
 
 /**
- * Options for {@linkcode buildTransformSync}
+ * Options for {@link buildTransformSync}
+ *
  * @internal
  */
 interface BuildTransformSyncOpts<Schema extends OdObject> {
@@ -166,7 +180,9 @@ interface BuildTransformSyncOpts<Schema extends OdObject> {
 }
 
 /**
- * Creates a transform which performs prepare-validation and validation transforms, returning the final result
+ * Creates a transform which performs prepare-validation and validation
+ * transforms, returning the final result
+ *
  * @param schema - Zod schema
  * @param opts - Options
  * @returns Lilconfig transform
@@ -197,8 +213,9 @@ function buildTransform<Schema extends OdObject>(
  * Best-effort detection of an asynchronous function.
  *
  * Not foolproof; only works for functions created with the `async` keyword
- * @param fn Function to test
- * @returns Whether or not the function is async\
+ *
+ * @param fn - Function to test
+ * @returns Whether or not the function is async
  * @internal
  */
 function isAsyncFunction(fn: unknown): fn is (...args: any[]) => Promise<any> {
@@ -210,8 +227,9 @@ function isAsyncFunction(fn: unknown): fn is (...args: any[]) => Promise<any> {
 }
 
 /**
- * Creates a synchronous transform which performs pre-validation, validation, and
- * post-validation transforms, returning the final result
+ * Creates a synchronous transform which performs pre-validation, validation,
+ * and post-validation transforms, returning the final result
+ *
  * @param schema - Zod schema
  * @param opts - Options
  * @returns Synchronous Lilconfig transform
@@ -247,16 +265,17 @@ function buildTransformSync<Schema extends OdObject>(
 }
 
 /**
- * Base options for {@linkcode searchConfig}, {@linkcode searchConfigSync},
- * {@linkcode loadConfig}, and {@linkcode loadConfigSync}
+ * Base options for {@link searchConfig}, {@link searchConfigSync},
+ * {@link loadConfig}, and {@link loadConfigSync}
  */
 export interface BaseConfigOpts {
   /**
    * Filenames to search for config files in.
    *
-   * Does not support `.yaml/.yml`; if this is needed, provide a loader.
+   * **Does not support `.yaml/.yml`**; if this is needed, provide a loader.
    *
-   * `.mjs` is unsupported if using {@linkcode searchConfigSync} or {@linkcode loadConfigSync}.
+   * `.mjs` is unsupported if using {@link searchConfigSync} or
+   * {@link loadConfigSync}.
    *
    * @see {@link https://github.com/antonk52/lilconfig/blob/master/readme.md} for how to add a YAML loader
    * @see {@link https://github.com/cosmiconfig/cosmiconfig/blob/main/README.md} for defaults
@@ -264,21 +283,24 @@ export interface BaseConfigOpts {
   searchPlaces?: string[];
   /**
    * Whether or not to cache config results
+   *
    * @defaultValue false
    */
   cache?: boolean;
 
   /**
    * Whether or not to run Zod in "safe" mode
+   *
    * @defaultValue false
    */
   safe?: boolean;
 }
 
 /**
- * Options for {@linkcode searchConfig} and {@linkcode loadConfig}.
+ * Options for {@link searchConfig} and {@link loadConfig}.
  *
- * All `loaders` and `prepare` can be synchronous or asynchronous, but the latter is preferred.
+ * All `loaders` and `prepare` can be synchronous or asynchronous, but the
+ * latter is preferred.
  */
 export interface ConfigOpts<Schema extends OdObject> extends BaseConfigOpts {
   /**
@@ -296,17 +318,18 @@ export interface ConfigOpts<Schema extends OdObject> extends BaseConfigOpts {
 }
 
 /**
- * Additional options for {@linkcode searchConfig} and {@linkcode searchConfigSync}
+ * Additional options for {@link searchConfig} and {@link searchConfigSync}
  */
 export interface SearchOpts {
   /**
    * Directory to start searching from
    */
+
   cwd?: string;
 }
 
 /**
- * Options for {@linkcode searchConfigSync} and {@linkcode loadConfigSync}.
+ * Options for {@link searchConfigSync} and {@link loadConfigSync}.
  *
  * All `loaders` and `prepare` _must_ be synchronous.
  */
@@ -323,7 +346,9 @@ export interface ConfigOptsSync<Schema extends OdObject>
    * Keys are file extensions, values are functions which receive a filepath and
    * return an object.
    *
-   * **Warning**: There's no way to guarantee the the loader is actually synchronous until we run it.
+   * **Warning**: There's no way to guarantee the the loader is actually
+   * synchronous until we run it. If it is async, `lilconfig` will throw an
+   * exception.
    */
   loaders?: Record<string, (filepath: string) => unknown>;
 }
@@ -343,8 +368,9 @@ const DEFAULT_LOADERS_SYNC = {} as const;
 
 /**
  * Builds options for Lilconfig
+ *
  * @param schema - Zod schema
- * @param opts - Options
+ * @param opts - Configuration options; see {@link ConfigOpts}
  * @returns Lilconfig options
  * @internal
  */
@@ -371,8 +397,9 @@ function buildOptions<Schema extends OdObject>(
 
 /**
  * Builds options for Lilconfig in sync mode
+ *
  * @param schema - Zod schema
- * @param opts - Options
+ * @param opts - Sync configuration options; see {@link ConfigOptsSync}
  * @returns Lilconfig options
  * @internal
  */
@@ -410,8 +437,11 @@ export function resetCache() {
 }
 
 /**
- * Search for a config file, load it if found, validate and optionally transform it.
- * @param scriptName - Name of your program; this name is generally present in the config filename
+ * Search for a config file, load it if found, validate and optionally transform
+ * it.
+ *
+ * @param scriptName - Name of your program; this name is generally present in
+ *   the config filename
  * @param schema - Zod schema
  * @param opts - Options
  * @returns A typed, validated (and optionally transformed) configuration object
@@ -431,8 +461,11 @@ export async function searchConfig<Schema extends OdObject>(
 }
 
 /**
- * Synchronously search for a config file, load it if found, validate and optionally transform it.
- * @param scriptName - Name of your program; this name is generally present in the config filename
+ * Synchronously search for a config file, load it if found, validate and
+ * optionally transform it.
+ *
+ * @param scriptName - Name of your program; this name is generally present in
+ *   the config filename
  * @param schema - Zod schema
  * @param opts - Options
  * @returns A typed, validated (and optionally transformed) configuration object
@@ -453,7 +486,9 @@ export function searchConfigSync<Schema extends OdObject>(
 
 /**
  * Load a config file at path `filepath`
- * @param scriptName - Name of your program; this name is generally present in the config filename
+ *
+ * @param scriptName - Name of your program; this name is generally present in
+ *   the config filename
  * @param filepath - Path to config file
  * @param schema - Zod schema
  * @param opts - Options
@@ -480,7 +515,9 @@ export async function loadConfig<Schema extends OdObject>(
 
 /**
  * Synchronously load a config file at path `filepath`
- * @param scriptName - Name of your program; this name is generally present in the config filename
+ *
+ * @param scriptName - Name of your program; this name is generally present in
+ *   the config filename
  * @param filepath - Path to config file
  * @param schema - Zod schema
  * @param opts - Options
@@ -506,6 +543,14 @@ export function loadConfigSync<Schema extends OdObject>(
   return result;
 }
 
+/**
+ * Loads or searches for a config file
+ *
+ * @param scriptName - Name of script (used to determine name of config file)
+ * @param schema - Zod schema
+ * @param opts - Config options
+ * @returns Config result object, if config found
+ */
 export async function getConfig<Schema extends OdObject>(
   scriptName: string,
   schema: Schema,
@@ -517,6 +562,14 @@ export async function getConfig<Schema extends OdObject>(
     : searchConfig(scriptName, schema, configOpts);
 }
 
+/**
+ * Loads or searches for a config file _but synchronously_
+ *
+ * @param scriptName - Name of script (used to determine name of config file)
+ * @param schema - Zod schema
+ * @param opts - Config options
+ * @returns Config result object, if config found
+ */
 export function getConfigSync<Schema extends OdObject>(
   scriptName: string,
   schema: Schema,

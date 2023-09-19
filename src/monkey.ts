@@ -7,34 +7,18 @@
 /**
  * Tracks what we've monkeypatched so we can more easily un-monkeypatch it
  * later.
+ *
  * @internal
  */
 const propIndex = new WeakMap<object, object>();
-
-/**
- * Wrapper around {@linkcode Object.defineProperty} which forces `configurable`
- * to `true`.
- *
- * @internal
- * @remarks Create a type which adds the property to `obj` `T`; figure out how
- * to derive the type of `prop` `K` from {@linkcode PropertyDescriptor} `D`.
- * @param obj Object to define property on
- * @param prop Property name
- * @param descriptor Property descriptor
- */
-export function defineProperty(
-  obj: object,
-  prop: PropertyKey,
-  descriptor: PropertyDescriptor,
-): object {
-  return Object.defineProperty(obj, prop, {...descriptor, configurable: true});
-}
 
 /**
  * Given `obj`, monkeypatch it with `props` and return the result.
  *
  * Checks `flag` to see if we've already monkeypatched `obj`.
  *
+ * @typeParam T - Type of `obj`
+ * @typeParam U - Properties with which to monkeypatch `obj`
  * @param flag - Symbol to use to track whether we've monkeypatched `obj`
  * @param obj - Object to monkeypatch
  * @param props - Stuff to monkeypatch `obj` with
@@ -68,6 +52,14 @@ export function monkeypatch<T extends object, U extends object>(
   return obj as any;
 }
 
+/**
+ * Given `obj`, which was previously monkeypatched via {@link monkeypatch},
+ * restore `obj` to its original state.
+ *
+ * @param flag - Symbol to use to track whether we've monkeypatched `obj`
+ * @param obj - Object to un-monkeypatch
+ * @returns Original object
+ */
 export function unmonkeypatch<T extends object>(
   flag: symbol,
   obj: T,

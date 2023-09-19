@@ -6,11 +6,12 @@ export interface ConfigureYargsOptions {
 }
 
 /**
+ * @param argv - Yargs instance
+ * @param schema - Zod schema
+ * @param opts - Options
+ * @returns Yargs instance configured with Zod schema and optionally
+ *   `scriptName`
  * @internal
- * @param argv Yargs instance
- * @param schema Zod schema
- * @param opts Options
- * @returns Yargs instance configured with Zod schema and optionally `scriptName`
  */
 export function configureYargs<T extends z.AnyZodObject, U>(
   argv: y.Argv<U>,

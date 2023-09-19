@@ -1,11 +1,9 @@
-/* eslint-disable camelcase */
 /**
  * Implementation for describing Yargs commands via Zod schemas.
+ *
  * @packageDocumentation
  */
 
-// /* eslint-disable camelcase */
-// import type {SetRequired} from 'type-fest';
 import type * as y from 'yargs';
 import z from 'zod';
 import {zStringOrArray} from '../util';
@@ -47,16 +45,40 @@ const zOdPositionalShape = z.record(
   }),
 );
 
+/**
+ * Checks whether a value is a valid {@link OdPositionalShape}
+ *
+ * @param value - Any value
+ * @returns `true` if `value` is a valid {@link OdPositionalShape}
+ */
 export function isOdPositionalShape(value: any): value is OdPositionalShape {
   return zOdPositionalShape.safeParse(value).success;
 }
 
+/**
+ * Checks whether a value is a valid {@link PositionalZodType}
+ *
+ * @param value - Any value
+ * @returns `true` if `value` is a valid {@link PositionalZodType}
+ */
 export function isOdPositionalType(
   value: z.ZodTypeAny,
 ): value is PositionalZodType {
   return zPositionalZodType.safeParse(value._def.typeName).success;
 }
 
+/**
+ * Creates a new positional option for a command.
+ *
+ * Cannot be run against a plain {@link z.ZodObject}; must have called
+ * {@link command} first
+ *
+ * @category Yargs API
+ * @param name - Name of the positional option
+ * @param schema - Zod schema for the positional option
+ * @param opts - Options for the positional option
+ * @returns New {@link z.ZodObject} with positional option assigned
+ */
 export function positional<
   T extends AnyOdCommand,
   P extends PositionalZodType,
@@ -74,7 +96,7 @@ export function positional<
 
 /**
  * Equivalent to a `yargs` middleware function based on the shape of a
- * {@linkcode z.ZodObject}
+ * {@link z.ZodObject}
  */
 export type OdMiddleware<T extends z.ZodRawShape> = y.MiddlewareFunction<
   ShapeToOdOptions<T>
@@ -82,14 +104,13 @@ export type OdMiddleware<T extends z.ZodRawShape> = y.MiddlewareFunction<
 
 /**
  * Equivalent to a `yargs` command handler function
- *
  */
 export type OdCommandHandler<T extends z.ZodRawShape> = (
   args: y.ArgumentsCamelCase<ShapeToOdOptions<T>>,
 ) => void | Promise<void>;
 
 /**
- * Options used when creating a yargs command from a {@linkcode z.ZodObject}
+ * Options used when creating a yargs command from a {@link z.ZodObject}
  */
 export interface OdCommandOptions<T extends z.ZodRawShape> {
   /**
@@ -114,11 +135,6 @@ export interface OdCommandOptions<T extends z.ZodRawShape> {
   describe?: string;
 }
 
-/**
- * Assigns Yargs middleware to the command
- * @param middlewares One ore more Yargs middleware functions, as array
- * @category Yargs API
- */
 function middlewares<T extends AnyOdCommand>(
   this: T,
   middlewares: OdMiddleware<T['shape']>[],
@@ -127,11 +143,6 @@ function middlewares<T extends AnyOdCommand>(
   T['_def']['unknownKeys'],
   T['_def']['catchall']
 >;
-/**
- * Assigns Yargs middleware to the command
- * @param middlewares One ore more Yargs middleware functions
- * @category Yargs API
- */
 function middlewares<T extends AnyOdCommand>(
   this: T,
   ...middlewares: OdMiddleware<T['shape']>[]
@@ -140,6 +151,13 @@ function middlewares<T extends AnyOdCommand>(
   T['_def']['unknownKeys'],
   T['_def']['catchall']
 >;
+/**
+ * Assigns Yargs middleware to the command
+ *
+ * @category Yargs API
+ * @param funcs - One ore more Yargs middleware functions, as array
+ * @returns New {@link z.ZodObject} with middleware assigned
+ */
 function middlewares<T extends AnyOdCommand>(
   this: T,
   ...funcs: OdMiddleware<any>[] | [OdMiddleware<any>[]]
@@ -157,6 +175,9 @@ function middlewares<T extends AnyOdCommand>(
 }
 
 /**
+ * Returns a record of all {@link y.Options} for a command
+ *
+ * @returns Record of options to the ...options of the options.
  * @todo Should we just return `undefined` if `this` is not a `ZodObject`?
  */
 function _toYargsOptionsRecord(this: z.AnyZodObject) {
@@ -168,6 +189,15 @@ function _toYargsOptionsRecord(this: z.AnyZodObject) {
   ) as Record<string, y.Options>;
 }
 
+/**
+ * Applies this command's configuration to a Yargs instance
+ *
+ * @typeParam S - This {@linkcode z.ZodObject}'s shape
+ * @typeParam T - This {@linkcode z.ZodObject}
+ * @typeParam Y - Whatever the Yargs instance is already configured with
+ * @param argv - Yargs instance
+ * @returns Everything in this instance applied to a Yargs instance
+ */
 function _toYargsCommand<
   S extends z.ZodRawShape,
   T extends z.ZodObject<S, any, any>,
@@ -189,16 +219,13 @@ function _toYargsCommand<
     (argv: y.Argv<Y>) => {
       let newArgv: any = argv.options(options);
 
-      if (this._def.odPositionals) {
-        for (const [name, item] of Object.entries(this._def.odPositionals)) {
-          const type = item._yargsType;
-
-          // item; // ?
-          newArgv = newArgv.positional(name, {
-            ...type,
-            ...item._def.odPositionalOptions,
-          });
-        }
+      for (const [name, item] of Object.entries(
+        this._def.odPositionals ?? {},
+      )) {
+        newArgv = newArgv.positional(name, {
+          ...item._yargsType,
+          ...item._def.odPositionalOptions,
+        });
       }
 
       return newArgv;
@@ -211,18 +238,45 @@ function _toYargsCommand<
   return yargsCommand;
 }
 
-export type OdCommandCreateParams<OCO extends OdCommandOptions<any>> =
-  NonNullable<z.RawCreateParams> & OCO;
+/**
+ * Extension of {@link z.RawCreateParams}, used widely by the `static create()`
+ * methods of Zod types.
+ *
+ * We use this to create an object and command from scratch via
+ * {@link command z.command()}.
+ *
+ * @todo Consider supporting positionals here; YAGNI for now
+ */
+export type OdCommandCreateParams<
+  OCO extends OdCommandOptions<any> = OdCommandOptions<any>,
+> = NonNullable<z.RawCreateParams> & OCO;
 
+/**
+ * A {@link z.ZodRawShape} except all properties are optional; the result of the
+ * shape after calling {@link z.ZodObject.partial}.
+ *
+ * @remarks
+ * This ensures that a {@link z.ZodOptional} is not wrapped in another.
+ */
 export type PartialShape<T extends z.ZodRawShape> = {
   [K in keyof T]: T[K] extends z.ZodOptional<any> ? T[K] : z.ZodOptional<T[K]>;
 };
 
+/**
+ * Creates a command from an existing {@link z.ZodObject}
+ *
+ * @param schema - The {@link z.ZodObject}
+ * @param nameOrData - The command name(s), {@linkcode OdCommandCreateParams}, or
+ *   {@link OdPositionalShape}
+ * @param description - Describe the command
+ * @param handler - The function to be executed when the command is invoked
+ * @returns New {@link z.ZodObject} with command metadata assigned
+ */
 function createCommandFromZodObject<
   T extends z.AnyZodObject,
   OCO extends OdCommandOptions<T['shape']>,
 >(
-  obj: T,
+  schema: T,
   nameOrData:
     | OdCommandCreateParams<OCO>
     | OdPositionalShape
@@ -231,9 +285,10 @@ function createCommandFromZodObject<
   description?: string,
   handler?: OdCommandHandler<T['shape']>,
 ) {
-  const newObj = obj.partial();
-  let def = newObj._def;
-  // OdCommandCreateParams extends OdCommandOptions
+  const newObj = schema.partial();
+  let {_def: def} = newObj;
+
+  // OdCommandCreateParams extends OdCommandOptions!!
   if (isOdCommandOptions(nameOrData)) {
     const createParams = processCreateParams(
       nameOrData as OdCommandCreateParams<any>,
@@ -305,7 +360,6 @@ export function command(
   description?: string,
   handler?: OdCommandHandler<{}>,
 ): z.ZodObject<{}>;
-
 export function command<T extends z.AnyZodObject>(
   this: T,
   commandName: string | readonly string[],
@@ -324,6 +378,18 @@ export function command<T extends AnyOdCommand>(
   T['_def']['unknownKeys'],
   T['_def']['catchall']
 >;
+/**
+ * Creates a command from an existing {@link z.ZodObject}, some data, or a
+ * command name (and optionally description and handler)
+ *
+ * @param a - A {@link z.ZodObject}, {@link OdCommandCreateParams} object, command
+ *   name(s), or {@link OdPositionalShape}
+ * @param b - Command name(s) or {@link OdCommandCreateParams} object
+ * @param c - Command description or {@link OdCommandHandler}
+ * @param d - {@link OdCommandHandler}
+ * @returns A new {@link z.ZodObject} with command metadata assigned
+ * @throws TypeError upon invalid arguments
+ */
 export function command<
   OCO extends OdCommandOptions<any>,
   T extends z.AnyZodObject | AnyOdCommand,
@@ -394,38 +460,60 @@ export function command<
 
 /**
  * This function lifted from Zod itself, with some modifications.
- * @author {@link https://github.com/colinhacks}
+ *
+ * @author See {@link https://github.com/colinhacks}
+ * @param params - Parameters to `create()` static method
+ * @returns `create()` params distilled to go into a {@link z.ZodTypeDef}
  */
 function processCreateParams<
   OCO extends OdCommandOptions<any>,
   P extends OdCommandCreateParams<OCO>,
 >(params: P) {
-  const {errorMap, invalid_type_error, required_error, description, ...rest} =
-    params;
-  if (errorMap && (invalid_type_error || required_error)) {
+  const {
+    errorMap,
+    invalid_type_error: invalidTypeError,
+    required_error: requiredError,
+    description,
+    ...rest
+  } = params;
+
+  if (errorMap && (invalidTypeError || requiredError)) {
+    // XXX: should be a TypeError, but that may be unexpected
     throw new Error(
       `Can't use "invalid_type_error" or "required_error" in conjunction with custom error map.`,
     );
   }
+
   if (errorMap) {
     return {errorMap, description, odCommandOptions: rest};
   }
+
   const customMap: z.ZodErrorMap = (iss, ctx) => {
-    if (iss.code !== 'invalid_type') return {message: ctx.defaultError};
-    if (typeof ctx.data === 'undefined') {
-      return {message: required_error ?? ctx.defaultError};
+    if (iss.code !== 'invalid_type') {
+      return {message: ctx.defaultError};
     }
-    return {message: invalid_type_error ?? ctx.defaultError};
+    return ctx.data === undefined
+      ? {message: requiredError ?? ctx.defaultError}
+      : {message: invalidTypeError ?? ctx.defaultError};
   };
   return {errorMap: customMap, description, odCommandOptions: rest};
 }
 
 const zOdCommandOptions = z.object({command: z.string()});
 
+/**
+ * Checks whether a value is a valid {@link OdCommandOptions} object
+ *
+ * @param value - Any value
+ * @returns `true` if `value` is a valid {@link OdCommandOptions} object
+ */
 function isOdCommandOptions(value: any): value is OdCommandOptions<any> {
   return zOdCommandOptions.safeParse(value).success;
 }
 
+/**
+ * A {@link z.ZodObject} with command metadata assigned
+ */
 export type AnyOdCommand = z.ZodObject<
   any,
   any,
@@ -436,6 +524,11 @@ export type AnyOdCommand = z.ZodObject<
   _def: {odCommandOptions: OdCommandOptions<any>};
 };
 
+/**
+ * Methods to graft onto the {@link z.ZodObject} prototype.
+ *
+ * @internal
+ */
 export const OdCommandZodType = {
   _toYargsCommand,
   _toYargsOptionsRecord,
