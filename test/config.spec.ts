@@ -7,7 +7,7 @@ import {
   resetCache,
   searchConfig,
   searchConfigSync,
-} from '../../src/config';
+} from '../src/config';
 
 const expect = unexpected.clone();
 
@@ -48,7 +48,7 @@ describe('config', function () {
         it('should load and validate a config file', async function () {
           await expect(
             loadConfig('good', filepath, schema, {
-              pre: async (result) => {
+              prepare: async (result) => {
                 return result === null
                   ? null
                   : {
@@ -69,7 +69,7 @@ describe('config', function () {
           it('should reject', async function () {
             await expect(
               loadConfig('good', filepath, schema, {
-                pre: async (result) => {
+                prepare: async (result) => {
                   return result === null
                     ? result
                     : {
@@ -90,7 +90,7 @@ describe('config', function () {
               await expect(
                 loadConfig('good', filepath, schema, {
                   safe: true,
-                  pre: (result) => {
+                  prepare: (result) => {
                     return result === null
                       ? null
                       : {
@@ -109,61 +109,6 @@ describe('config', function () {
           });
         });
       });
-
-      describe('with a post transform', function () {
-        it('should load and validate a config file', async function () {
-          await expect(
-            loadConfig('good', filepath, schema, {
-              post: async (result) => {
-                return result === null
-                  ? null
-                  : {
-                      ...result,
-                      config: {
-                        ...result.config,
-                        foo: result.config.foo.toUpperCase(),
-                      },
-                    };
-              },
-            }),
-            'to be fulfilled with',
-            {...expected, config: {...expected.config, foo: 'BAZ'}},
-          );
-        });
-      });
-
-      describe('with both transforms', function () {
-        it('should load and validate a config file', async function () {
-          await expect(
-            loadConfig('good', filepath, schema, {
-              pre: async (result) => {
-                return result === null
-                  ? null
-                  : {
-                      ...result,
-                      config: {
-                        ...result.config,
-                        foo: result.config.foo.toUpperCase(),
-                      },
-                    };
-              },
-              post: async (result) => {
-                return result === null
-                  ? null
-                  : {
-                      ...result,
-                      config: {
-                        ...result.config,
-                        foo: `${result.config.foo}!`,
-                      },
-                    };
-              },
-            }),
-            'to be fulfilled with',
-            {...expected, config: {...expected.config, foo: 'BAZ!'}},
-          );
-        });
-      });
     });
 
     describe('loadConfigSync()', function () {
@@ -175,7 +120,7 @@ describe('config', function () {
         it('should load and validate a config file', function () {
           expect(
             loadConfigSync('good', filepath, schema, {
-              pre: (result) => {
+              prepare: (result) => {
                 return result === null
                   ? null
                   : {
@@ -197,7 +142,7 @@ describe('config', function () {
             expect(
               () =>
                 loadConfigSync('good', filepath, schema, {
-                  pre: (result) => {
+                  prepare: (result) => {
                     return result === null
                       ? null
                       : {
@@ -219,7 +164,7 @@ describe('config', function () {
               expect(
                 loadConfigSync('good', filepath, schema, {
                   safe: true,
-                  pre: (result) => {
+                  prepare: (result) => {
                     return result === null
                       ? null
                       : {
@@ -244,7 +189,7 @@ describe('config', function () {
               () =>
                 loadConfigSync('good', filepath, schema, {
                   // @ts-expect-error wrong type
-                  pre: async (result) => {
+                  prepare: async (result) => {
                     return result === null
                       ? null
                       : {
@@ -260,85 +205,6 @@ describe('config', function () {
               TypeError,
             );
           });
-        });
-      });
-
-      describe('with a post transform', function () {
-        it('should load and validate a config file', function () {
-          expect(
-            loadConfigSync('good', filepath, schema, {
-              post: (result) => {
-                return result === null
-                  ? null
-                  : {
-                      ...result,
-                      config: {
-                        ...result.config,
-                        foo: result.config.foo.toUpperCase(),
-                      },
-                    };
-              },
-            }),
-            'to equal',
-            {...expected, config: {...expected.config, foo: 'BAZ'}},
-          );
-        });
-
-        describe('when the post transform is async', function () {
-          it('should throw', function () {
-            expect(
-              () =>
-                loadConfigSync('good', filepath, schema, {
-                  // @ts-expect-error wrong type
-                  post: async (result) => {
-                    return result === null
-                      ? null
-                      : {
-                          ...result,
-                          config: {
-                            ...result.config,
-                            foo: result.config.foo.toUpperCase(),
-                          },
-                        };
-                  },
-                }),
-              'to throw a',
-              TypeError,
-            );
-          });
-        });
-      });
-
-      describe('with both transforms', function () {
-        it('should load and validate a config file', function () {
-          expect(
-            loadConfigSync('good', filepath, schema, {
-              pre: (result) => {
-                return result === null
-                  ? null
-                  : {
-                      ...result,
-                      config: {
-                        ...result.config,
-                        foo: result.config.foo.toUpperCase(),
-                      },
-                    };
-              },
-              post: (result) => {
-                return result === null
-                  ? null
-                  : {
-                      ...result,
-                      config: {
-                        ...result.config,
-                        foo: `${result.config.foo}!`,
-                      },
-                    };
-              },
-            }),
-            'to equal',
-            {...expected, config: {...expected.config, foo: 'BAZ!'}},
-          );
         });
       });
 

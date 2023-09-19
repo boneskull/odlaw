@@ -1,3 +1,5 @@
 __snapshots__
 dist
 test/**/fixture/**
+docs
+CHANGELOG.md

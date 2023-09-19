@@ -1,0 +1,16 @@
+{
+  "extends": "@tsconfig/node16/tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["."],
+  "references": [
+    {
+      "path": "../src"
+    }
+  ],
+  "ts-node": {
+    "transpileOnly": true
+  }
+}
