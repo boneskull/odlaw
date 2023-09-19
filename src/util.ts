@@ -1,6 +1,12 @@
+/**
+ * General-purpose utilities
+ *
+ * @packageDocumentation
+ */
+
 import z from 'zod';
 
-const ZKind = z.ZodFirstPartyTypeKind;
+const {ZodFirstPartyTypeKind: ZKind} = z;
 
 export type Expand<T> = T extends object
   ? T extends infer O
@@ -22,25 +28,58 @@ export type Compact<T> = {
 
 export const zStringOrArray = z.string().or(z.array(z.string()));
 
-function isZodOptional(value: any): value is z.ZodOptional<any> {
+/**
+ * Type guard for {@link z.ZodOptional}
+ *
+ * @param value - Any value
+ * @returns `true` if `value` is a `ZodOptional`
+ */
+export function isZodOptional(value: any): value is z.ZodOptional<any> {
   return (
     typeof value === 'object' && value._def?.typeName === ZKind.ZodOptional
   );
 }
 
-function isZodDefault(value: any): value is z.ZodDefault<any> {
+/**
+ * Type guard for {@link z.ZodDefault}
+ *
+ * @param value - Any value
+ * @returns `true` if `value` is a `ZodDefault`
+ */
+export function isZodDefault(value: any): value is z.ZodDefault<any> {
   return typeof value === 'object' && value._def?.typeName === ZKind.ZodDefault;
 }
 
-function isZodArray(value: any): value is z.ZodArray<any> {
+/**
+ * Type guard for {@link z.ZodArray}
+ *
+ * @param value - Any value
+ * @returns `true` if `value` is a `ZodArray`
+ */
+export function isZodArray(value: any): value is z.ZodArray<any> {
   return typeof value === 'object' && value._def?.typeName === ZKind.ZodArray;
 }
 
-export function getTerminalType(
+/**
+ * Returns the terminal Zod type of a schema.
+ *
+ * This is needed for certain Zod types that wrap other types, such as
+ * {@link z.ZodOptional}
+ *
+ * @remarks
+ * This could have been recursive, but JavaScript & recursion don't mix well
+ * @param schema - Any Zod schema
+ * @returns The terminal Zod type of the schema
+ * @todo Add support for {@link z.ZodUnion}, {@link z.ZodEffect}, etc.
+ */
+export function getTerminalZodType(
   schema: z.ZodTypeAny,
 ): z.ZodTypeAny | undefined {
   const typeName = schema._def?.typeName;
   if (!typeName) {
+    // I'm unsure if this is actually possible, since `ZodTypeDef` does not have
+    // a `typeName` prop, but all of the type-specific `ZodTypeDef`s do.
+    /* istanbul ignore next */
     return;
   }
   const queue = [schema];
